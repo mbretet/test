@@ -1,0 +1,1844 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monev Sub Infrastruktur - Kabupaten Banjar</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Tahoma,sans-serif}
+body{background:#f1f5f9;color:#1e293b;font-size:14px;overflow-x:hidden}
+.app{display:flex;min-height:100vh}
+
+/* ===== SIDEBAR ===== */
+.sidebar{width:250px;background:linear-gradient(180deg,#0f172a,#1e293b);color:#cbd5e1;position:fixed;height:100vh;overflow-y:auto;overflow-x:hidden;z-index:100;transition:width .3s ease}
+.sidebar.minimized{width:60px}
+.sidebar-header{padding:15px;border-bottom:1px solid #334155;text-align:center;position:relative;min-height:80px;display:flex;flex-direction:column;justify-content:center}
+.sidebar.minimized .sidebar-header{padding:10px 5px}
+.sidebar-header .logo{font-size:12px;color:#94a3b8;letter-spacing:1px}
+.sidebar-header h2{color:#f1f5f9;font-size:14px;margin-top:5px;font-weight:600}
+.sidebar-header .subtitle{color:#60a5fa;font-size:11px;margin-top:3px}
+.sidebar.minimized .logo,.sidebar.minimized h2,.sidebar.minimized .subtitle{display:none}
+.sidebar-toggle{position:absolute;top:10px;right:10px;background:#334155;border:none;color:#cbd5e1;width:28px;height:28px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.2s;font-size:12px}
+.sidebar-toggle:hover{background:#3b82f6;color:#fff}
+.sidebar.minimized .sidebar-toggle{right:50%;transform:translateX(50%)}
+.menu{padding:10px 0}
+.menu-item{padding:12px 20px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:.2s;border-left:3px solid transparent;font-size:13px;white-space:nowrap;overflow:hidden;position:relative}
+.sidebar.minimized .menu-item{padding:12px 0;justify-content:center;gap:0}
+.sidebar.minimized .menu-item span.menu-label{display:none}
+.menu-item:hover{background:#334155;color:#f1f5f9}
+.menu-item.active{background:#1e40af;color:#fff;border-left-color:#60a5fa}
+.menu-item i{width:20px;text-align:center;flex-shrink:0}
+.sidebar.minimized .menu-item:hover::after{content:attr(data-tooltip);position:absolute;left:60px;top:50%;transform:translateY(-50%);background:#0f172a;color:#fff;padding:6px 12px;border-radius:4px;font-size:12px;white-space:nowrap;z-index:200;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+
+/* ===== MAIN ===== */
+.main{margin-left:250px;flex:1;min-width:0;transition:margin-left .3s ease}
+.sidebar.minimized ~ .main{margin-left:60px}
+.topbar{background:#fff;padding:12px 20px;box-shadow:0 1px 3px rgba(0,0,0,.08);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:15px;position:sticky;top:0;z-index:50}
+.topbar h1{font-size:15px;color:#0f172a;font-weight:600}
+.topbar h1 span{color:#3b82f6}
+.filter-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.filter-bar select{padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;font-size:12px;cursor:pointer;outline:none}
+.filter-bar select:focus{border-color:#3b82f6}
+.content{padding:20px;overflow-x:auto}
+.page{display:none}
+.page.active{display:block}
+
+/* ===== CARDS ===== */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:20px}
+.card{background:#fff;padding:16px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);border-left:4px solid #3b82f6;position:relative;overflow:hidden}
+.card.green{border-left-color:#10b981}
+.card.yellow{border-left-color:#f59e0b}
+.card.red{border-left-color:#ef4444}
+.card.purple{border-left-color:#8b5cf6}
+.card .label{font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.card .value{font-size:24px;font-weight:700;color:#0f172a;margin-top:5px}
+.card .sub{font-size:11px;color:#94a3b8;margin-top:3px}
+.card i.bg-icon{position:absolute;right:15px;top:50%;transform:translateY(-50%);font-size:32px;opacity:.15;color:#3b82f6}
+
+/* ===== PANEL ===== */
+.panel{background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:20px;overflow:hidden}
+.panel-header{padding:15px 20px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+.panel-header h3{font-size:15px;color:#0f172a;font-weight:600}
+.panel-body{padding:20px}
+
+/* ===== TABLE WRAPPER DENGAN STICKY SCROLL INDICATOR ===== */
+.table-wrapper{
+  position:relative;
+  overflow:auto;
+  max-height:none;
+  border:1px solid #e2e8f0;
+  border-radius:8px;
+  background:#fff;
+}
+/* Shadow KIRI - sticky, selalu terlihat saat scroll ke kanan */
+.table-wrapper::before{
+  content:'';
+  position:sticky;
+  left:0;
+  top:0;
+  bottom:0;
+  width:0;
+  z-index:10;
+  pointer-events:none;
+  box-shadow:4px 0 8px rgba(0,0,0,.08);
+  opacity:0;
+  transition:opacity .2s;
+  float:left;
+  height:100%;
+}
+/* Shadow KANAN - sticky, selalu terlihat saat ada konten tersembunyi */
+.table-wrapper::after{
+  content:'';
+  position:sticky;
+  right:0;
+  top:0;
+  bottom:0;
+  width:0;
+  z-index:10;
+  pointer-events:none;
+  box-shadow:-4px 0 8px rgba(0,0,0,.08);
+  opacity:0;
+  transition:opacity .2s;
+  float:right;
+  height:100%;
+}
+.table-wrapper.can-scroll-right::after{opacity:1}
+.table-wrapper.can-scroll-left::before{opacity:1}
+
+/* Scroll indicator bar di pojok kanan atas - SELALU TERLIHAT */
+.scroll-indicator{
+  position:absolute;
+  top:0;
+  right:0;
+  width:40px;
+  height:40px;
+  background:linear-gradient(135deg,transparent 50%,rgba(59,130,246,.15) 50%);
+  border-left:1px solid #e2e8f0;
+  border-bottom:1px solid #e2e8f0;
+  border-bottom-left-radius:8px;
+  z-index:15;
+  pointer-events:none;
+  opacity:0;
+  transition:opacity .2s;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.scroll-indicator i{
+  color:#3b82f6;
+  font-size:12px;
+  position:absolute;
+  top:6px;right:6px;
+}
+.table-wrapper.can-scroll-right .scroll-indicator{opacity:1}
+
+/* Scroll hint banner */
+.scroll-hint{
+  display:none;align-items:center;gap:6px;font-size:11px;color:#92400e;
+  margin-bottom:8px;padding:6px 10px;background:#fef3c7;border-radius:6px;
+  border:1px solid #fde68a;
+}
+.scroll-hint.show{display:flex}
+.scroll-hint i{color:#f59e0b}
+
+/* ===== TABLE ===== */
+table{width:max-content;min-width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
+th{background:#f8fafc;padding:8px 6px;text-align:left;font-weight:600;color:#475569;border-bottom:2px solid #e2e8f0;white-space:nowrap;font-size:12px;position:sticky;top:0;z-index:4}
+td{padding:6px;border-bottom:1px solid #f1f5f9;color:#334155;vertical-align:middle;background:#fff}
+tbody tr:hover td{background:#f8fafc}
+
+/* Sticky columns */
+table.sticky-cols th:nth-child(1),table.sticky-cols td:nth-child(1){position:sticky;left:0;z-index:3;min-width:40px;text-align:center;background:#f8fafc}
+table.sticky-cols th:nth-child(2),table.sticky-cols td:nth-child(2){position:sticky;left:40px;z-index:3;min-width:140px;font-family:monospace;font-size:11px;background:#f8fafc}
+table.sticky-cols th:nth-child(3),table.sticky-cols td:nth-child(3){position:sticky;left:180px;z-index:3;min-width:280px;background:#fff}
+table.sticky-cols tbody tr:hover th:nth-child(1),table.sticky-cols tbody tr:hover td:nth-child(1),
+table.sticky-cols tbody tr:hover th:nth-child(2),table.sticky-cols tbody tr:hover td:nth-child(2),
+table.sticky-cols tbody tr:hover th:nth-child(3),table.sticky-cols tbody tr:hover td:nth-child(3){background:#f1f5f9}
+table.sticky-cols thead th:nth-child(1),table.sticky-cols thead th:nth-child(2),table.sticky-cols thead th:nth-child(3){z-index:5;background:#f1f5f9}
+table.sticky-cols tr td:nth-child(3){box-shadow:2px 0 5px rgba(0,0,0,.05)}
+
+/* ===== KOLOM CHECKLIST - LEBAR SERAGAM & RAPAT ===== */
+table.sticky-cols th.cek-col,table.sticky-cols td.cek-col{
+  width:90px;
+  min-width:90px;
+  max-width:90px;
+  padding:4px 2px;
+  text-align:center;
+  border-left:1px solid #f1f5f9;
+}
+table.sticky-cols th.cek-col{
+  background:#eff6ff;
+  color:#1e40af;
+  font-size:10px;
+  font-weight:600;
+  white-space:normal;
+  line-height:1.2;
+  text-align:center;
+  vertical-align:middle;
+  padding:6px 2px;
+}
+
+.text-right{text-align:right}
+.text-center{text-align:center}
+.num{font-family:'Consolas',monospace;font-weight:500}
+
+/* Header 2 baris */
+th.group-header{background:#dbeafe;color:#1e40af;text-align:center;font-weight:700;letter-spacing:.5px;border-bottom:1px solid #93c5fd;font-size:12px}
+th.sub-header{background:#eff6ff;color:#1e40af;font-size:10px;text-align:center;border-bottom:2px solid #93c5fd;white-space:normal;line-height:1.2;padding:6px 2px;width:90px;min-width:90px;max-width:90px}
+
+/* Checklist */
+.cek-cell{cursor:pointer;font-weight:700;font-size:15px;user-select:none;display:inline-block;width:26px;height:26px;line-height:26px;text-align:center;border-radius:5px;transition:.15s;border:2px solid transparent}
+.cek-cell:hover{transform:scale(1.15);box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.cek-cell.v{color:#059669;background:#d1fae5;border-color:#a7f3d0}
+.cek-cell.x{color:#dc2626;background:#fee2e2;border-color:#fecaca}
+
+/* Keterangan */
+.ket-cell{min-width:220px;max-width:320px;cursor:text;padding:4px 8px;border-radius:4px;border:1px dashed transparent;transition:.15s;font-size:12px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ket-cell:hover{border-color:#cbd5e1;background:#f8fafc}
+.ket-cell.empty{color:#94a3b8;font-style:italic}
+.ket-cell input{width:100%;padding:4px 8px;border:1px solid #3b82f6;border-radius:4px;font-size:12px;font-family:inherit;outline:none;background:#fff}
+
+/* Badge & Button */
+.badge{display:inline-block;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:600}
+.badge-green{background:#d1fae5;color:#065f46}
+.badge-yellow{background:#fef3c7;color:#92400e}
+.badge-red{background:#fee2e2;color:#991b1b}
+.badge-blue{background:#dbeafe;color:#1e40af}
+.btn{padding:7px 14px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;transition:.2s;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:#3b82f6;color:#fff}.btn-primary:hover{background:#2563eb}
+.btn-success{background:#10b981;color:#fff}.btn-success:hover{background:#059669}
+.btn-warning{background:#f59e0b;color:#fff}.btn-warning:hover{background:#d97706}
+.btn-danger{background:#ef4444;color:#fff}.btn-danger:hover{background:#dc2626}
+.btn-secondary{background:#e2e8f0;color:#334155}.btn-secondary:hover{background:#cbd5e1}
+.btn-info{background:#06b6d4;color:#fff}.btn-info:hover{background:#0891b2}
+.btn-sm{padding:4px 10px;font-size:11px}
+.btn-icon{padding:6px 10px;font-size:11px}
+
+/* Modal */
+.modal{display:none;position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:200;justify-content:center;align-items:center;padding:20px}
+.modal.show{display:flex}
+.modal-content{background:#fff;border-radius:12px;max-width:700px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.modal-content.lg{max-width:900px}
+.modal-header{padding:18px 22px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center}
+.modal-header h3{font-size:16px;color:#0f172a}
+.modal-close{background:none;border:none;font-size:22px;cursor:pointer;color:#64748b}
+.modal-body{padding:22px}
+.modal-footer{padding:15px 22px;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:10px}
+
+.form-group{margin-bottom:15px}
+.form-group label{display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px}
+.form-group input,.form-group textarea,.form-group select{width:100%;padding:8px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;font-family:inherit;outline:none}
+.form-group input:focus,.form-group textarea:focus{border-color:#3b82f6}
+.form-group textarea{resize:vertical;min-height:70px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.form-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:15px}
+
+.search-box{position:relative;max-width:300px}
+.search-box input{width:100%;padding:7px 12px 7px 32px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;outline:none}
+.search-box i{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8}
+.filter-group{display:flex;gap:8px;flex-wrap:wrap}
+.filter-btn{padding:5px 12px;border:1px solid #cbd5e1;background:#fff;border-radius:6px;cursor:pointer;font-size:12px;font-weight:500}
+.filter-btn.active{background:#3b82f6;color:#fff;border-color:#3b82f6}
+
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}
+.chart-box{background:#fff;border-radius:10px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.chart-box h4{font-size:13px;color:#0f172a;margin-bottom:15px;font-weight:600}
+
+.alert{padding:12px 15px;border-radius:6px;margin-bottom:15px;font-size:13px;display:flex;align-items:center;gap:10px}
+.alert-info{background:#dbeafe;color:#1e40af;border-left:4px solid #3b82f6}
+.alert-warning{background:#fef3c7;color:#92400e;border-left:4px solid #f59e0b}
+.alert-success{background:#d1fae5;color:#065f46;border-left:4px solid #10b981}
+
+.opd-link{color:#3b82f6;cursor:pointer;font-weight:600;text-decoration:none}
+.opd-link:hover{text-decoration:underline}
+
+.copy-preview{max-height:300px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;margin-top:10px}
+.copy-preview table{font-size:12px;min-width:auto}
+.copy-preview th{background:#f1f5f9;padding:6px;font-size:11px}
+.copy-preview td{padding:6px;font-size:11px}
+
+.opd-card{padding:12px;border:1px solid #e2e8f0;border-radius:8px;display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+.opd-card:hover{border-color:#3b82f6;background:#f8fafc}
+.opd-card .info{flex:1;min-width:0}
+.opd-card .info h5{font-size:13px;color:#0f172a;margin-bottom:2px}
+.opd-card .info small{font-size:11px;color:#64748b}
+
+.tahun-card{border:1px solid #e2e8f0;border-radius:10px;padding:15px;margin-bottom:15px;background:#fff}
+.tahun-card .tahun-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:10px;border-bottom:2px solid #f1f5f9}
+.tahun-card .tahun-header h4{color:#0f172a;font-size:15px}
+.bulan-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.bulan-item{padding:12px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;transition:.2s;cursor:pointer}
+.bulan-item:hover{border-color:#3b82f6;background:#eff6ff}
+.bulan-item.has-data{background:#f0f9ff;border-color:#bae6fd}
+.bulan-item .bulan-name{font-weight:600;color:#0f172a;margin-bottom:4px}
+.bulan-item .bulan-info{font-size:11px;color:#64748b}
+
+@media(max-width:768px){
+.sidebar{transform:translateX(-100%);transition:.3s}
+.sidebar.open{transform:translateX(0)}
+.sidebar.minimized{transform:translateX(-100%)}
+.main{margin-left:0 !important}
+.chart-grid{grid-template-columns:1fr}
+.form-row,.form-row-3{grid-template-columns:1fr}
+.menu-toggle{display:block !important}
+}
+.menu-toggle{display:none;background:none;border:none;font-size:20px;cursor:pointer;color:#0f172a}
+.empty{text-align:center;padding:40px;color:#94a3b8}
+.empty i{font-size:48px;margin-bottom:10px;opacity:.3}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar" id="sidebar">
+<div class="sidebar-header">
+<button class="sidebar-toggle" onclick="toggleSidebar()" title="Minimize/Expand">
+<i class="fas fa-chevron-left" id="toggleIcon"></i>
+</button>
+<div class="logo">BAPPERIDA</div>
+<h2>MONEV SUB INFRA</h2>
+<div class="subtitle">Kab. Banjar</div>
+</div>
+<nav class="menu">
+<div class="menu-item active" data-page="dashboard" data-tooltip="Dashboard" onclick="goToPage('dashboard')"><i class="fas fa-tachometer-alt"></i><span class="menu-label">Dashboard</span></div>
+<div class="menu-item" data-page="monev" data-tooltip="Monev OPD" onclick="goToPage('monev')"><i class="fas fa-tasks"></i><span class="menu-label">Monev OPD</span></div>
+<div class="menu-item" data-page="rekap" data-tooltip="Rekap Kabupaten" onclick="goToPage('rekap')"><i class="fas fa-file-alt"></i><span class="menu-label">Rekap Kabupaten</span></div>
+<div class="menu-item" data-page="analisis" data-tooltip="Analisis Bulanan" onclick="goToPage('analisis')"><i class="fas fa-chart-line"></i><span class="menu-label">Analisis Bulanan</span></div>
+<div class="menu-item" data-page="master-opd" data-tooltip="Master OPD" onclick="goToPage('master-opd')"><i class="fas fa-building"></i><span class="menu-label">Master OPD</span></div>
+<div class="menu-item" data-page="master-periode" data-tooltip="Master Periode" onclick="goToPage('master-periode')"><i class="fas fa-calendar"></i><span class="menu-label">Master Periode</span></div>
+<div class="menu-item" data-page="import-export" data-tooltip="Import / Export" onclick="goToPage('import-export')"><i class="fas fa-file-excel"></i><span class="menu-label">Import / Export</span></div>
+<div class="menu-item" data-page="pengaturan" data-tooltip="Pengaturan" onclick="goToPage('pengaturan')"><i class="fas fa-cog"></i><span class="menu-label">Pengaturan</span></div>
+</nav>
+</aside>
+
+<main class="main">
+<header class="topbar">
+<div style="display:flex;align-items:center;gap:15px">
+<button class="menu-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')"><i class="fas fa-bars"></i></button>
+<h1><i class="fas fa-chart-bar"></i> MONEV <span>SUB INFRASTRUKTUR</span></h1>
+</div>
+<div class="filter-bar">
+<select id="filterTahun"></select>
+<select id="filterBulan"></select>
+<select id="filterOPD"></select>
+<button class="btn btn-success btn-sm" onclick="tambahOPD()" title="Tambah OPD Baru"><i class="fas fa-plus-circle"></i> OPD</button>
+</div>
+</header>
+
+<div class="content">
+<div class="page active" id="page-dashboard">
+<div class="cards" id="dashboardCards"></div>
+<div class="chart-grid">
+<div class="chart-box"><h4><i class="fas fa-chart-bar"></i> Nilai Monev per OPD</h4><canvas id="chartOPD"></canvas></div>
+<div class="chart-box"><h4><i class="fas fa-chart-pie"></i> Rata-rata Komponen Monev</h4><canvas id="chartKomponen"></canvas></div>
+</div>
+<div class="panel">
+<div class="panel-header"><h3><i class="fas fa-building"></i> Ringkasan per OPD</h3></div>
+<div class="panel-body"><div class="table-wrapper" id="wrapRekapOPD"><table id="tableRekapOPD"></table></div></div>
+</div>
+</div>
+
+<div class="page" id="page-monev">
+<div class="panel">
+<div class="panel-header">
+<h3 id="monevTitle"><i class="fas fa-list"></i> Daftar Sub Kegiatan</h3>
+<div style="display:flex;gap:10px;flex-wrap:wrap">
+<button class="btn btn-info btn-sm" onclick="bukaModalCopy()"><i class="fas fa-copy"></i> Copy dari Bulan Lain</button>
+<button class="btn btn-success btn-sm" onclick="tambahSubKegiatan()"><i class="fas fa-plus"></i> Tambah Sub Kegiatan</button>
+</div>
+</div>
+<div class="panel-body">
+<div class="alert alert-info">
+<i class="fas fa-info-circle"></i>
+<div><strong>Checklist</strong> — klik ✓/✕ untuk toggle. <strong>Keterangan</strong> — klik kolom untuk mengetik catatan. <i class="fas fa-arrows-left-right"></i> Geser horizontal untuk melihat semua kolom.</div>
+</div>
+<div style="display:flex;gap:15px;margin-bottom:15px;flex-wrap:wrap;align-items:center">
+<div class="search-box"><i class="fas fa-search"></i><input type="text" id="searchSubKeg" placeholder="Cari kode atau nama..." oninput="renderMonev()"></div>
+<div class="filter-group">
+<button class="filter-btn active" data-filter="all" onclick="setFilter(this)">Semua</button>
+<button class="filter-btn" data-filter="lengkap" onclick="setFilter(this)">✓ Lengkap</button>
+<button class="filter-btn" data-filter="belum" onclick="setFilter(this)">✕ Belum Lengkap</button>
+</div>
+<div id="statusInfo" style="margin-left:auto;font-size:12px;color:#64748b"></div>
+</div>
+<div class="scroll-hint" id="scrollHint"><i class="fas fa-arrows-left-right"></i> Geser ke kanan untuk melihat kolom lainnya</div>
+<div class="table-wrapper" id="wrapMonev">
+<div class="scroll-indicator"><i class="fas fa-chevron-right"></i></div>
+<table class="sticky-cols" id="tableMonev"></table>
+</div>
+</div>
+</div>
+</div>
+
+<div class="page" id="page-rekap">
+<div class="panel">
+<div class="panel-header"><h3><i class="fas fa-file-alt"></i> Rekapitulasi Kabupaten</h3>
+<button class="btn btn-primary btn-sm" onclick="cetakPDF()"><i class="fas fa-print"></i> Cetak PDF</button>
+</div>
+<div class="panel-body"><div class="table-wrapper"><table id="tableRekapKab"></table></div></div>
+</div>
+</div>
+
+<div class="page" id="page-analisis">
+<div class="panel">
+<div class="panel-header"><h3><i class="fas fa-chart-line"></i> Analisis Perbandingan Bulanan</h3></div>
+<div class="panel-body">
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:20px">
+<div class="form-group"><label>OPD</label><select id="analOPD"></select></div>
+<div class="form-group"><label>Bulan 1</label><select id="analBulan1"></select></div>
+<div class="form-group"><label>Bulan 2</label><select id="analBulan2"></select></div>
+</div>
+<button class="btn btn-primary" onclick="renderAnalisis()"><i class="fas fa-sync"></i> Bandingkan</button>
+<div id="hasilAnalisis" style="margin-top:20px"></div>
+</div>
+</div>
+</div>
+
+<div class="page" id="page-master-opd">
+<div class="panel">
+<div class="panel-header"><h3><i class="fas fa-building"></i> Master Perangkat Daerah</h3>
+<button class="btn btn-success btn-sm" onclick="tambahOPD()"><i class="fas fa-plus"></i> Tambah OPD</button>
+</div>
+<div class="panel-body">
+<div class="alert alert-info"><i class="fas fa-info-circle"></i> Kelola daftar OPD. OPD yang dihapus akan ikut menghapus semua data Monev terkait di seluruh periode.</div>
+<div id="listOPD"></div>
+</div>
+</div>
+</div>
+
+<div class="page" id="page-master-periode">
+<div class="panel">
+<div class="panel-header"><h3><i class="fas fa-calendar"></i> Master Periode Monitoring</h3>
+<button class="btn btn-success btn-sm" onclick="bukaModalTambahTahun()"><i class="fas fa-plus"></i> Tambah Tahun</button>
+</div>
+<div class="panel-body">
+<div class="alert alert-info"><i class="fas fa-info-circle"></i> Data setiap bulan bersifat independen. Klik bulan untuk langsung membuka periode tersebut.</div>
+<div id="listPeriode"></div>
+</div>
+</div>
+</div>
+
+<div class="page" id="page-import-export">
+<div class="panel">
+<div class="panel-header"><h3><i class="fas fa-file-excel"></i> Import & Export Data</h3></div>
+<div class="panel-body">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+<div style="padding:20px;border:2px dashed #cbd5e1;border-radius:10px;text-align:center">
+<i class="fas fa-file-import" style="font-size:40px;color:#3b82f6"></i>
+<h4 style="margin:10px 0">Import Excel</h4>
+<p style="font-size:12px;color:#64748b;margin-bottom:15px">Upload file Excel Monev untuk memperbarui database</p>
+<input type="file" id="fileImport" accept=".xlsx,.xls" style="display:none" onchange="importExcel(event)">
+<button class="btn btn-primary" onclick="document.getElementById('fileImport').click()"><i class="fas fa-upload"></i> Pilih File</button>
+</div>
+<div style="padding:20px;border:2px dashed #cbd5e1;border-radius:10px;text-align:center">
+<i class="fas fa-file-export" style="font-size:40px;color:#10b981"></i>
+<h4 style="margin:10px 0">Export Data</h4>
+<p style="font-size:12px;color:#64748b;margin-bottom:15px">Unduh data dalam format Excel atau PDF</p>
+<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+<button class="btn btn-success" onclick="exportExcel('opd')"><i class="fas fa-file-excel"></i> Data OPD</button>
+<button class="btn btn-success" onclick="exportExcel('rekap')"><i class="fas fa-file-excel"></i> Rekap</button>
+<button class="btn btn-success" onclick="exportExcel('all')"><i class="fas fa-file-excel"></i> Semua</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div class="page" id="page-pengaturan">
+<div class="panel">
+<div class="panel-header"><h3><i class="fas fa-cog"></i> Pengaturan Sistem</h3></div>
+<div class="panel-body">
+<div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> Perhatian: Reset data akan menghapus seluruh data yang tersimpan di browser.</div>
+<button class="btn btn-danger" onclick="resetData()"><i class="fas fa-trash"></i> Reset Semua Data</button>
+<button class="btn btn-warning" onclick="backupData()"><i class="fas fa-download"></i> Backup Data (JSON)</button>
+<input type="file" id="fileRestore" accept=".json" style="display:none" onchange="restoreData(event)">
+<button class="btn btn-primary" onclick="document.getElementById('fileRestore').click()"><i class="fas fa-upload"></i> Restore Data</button>
+<div style="margin-top:20px;padding:15px;background:#f8fafc;border-radius:8px">
+<h4 style="font-size:13px;margin-bottom:10px">Informasi Sistem</h4>
+<div style="font-size:12px;color:#64748b">
+<div>Penyimpanan: <strong>localStorage</strong></div>
+<div>Versi Aplikasi: <strong>1.5.0 (Checklist Seragam + Scroll Sticky)</strong></div>
+<div>Tanggal: <strong id="tglSekarang"></strong></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+
+<!-- MODAL EDIT SUB KEGIATAN -->
+<div class="modal" id="modalSubKeg">
+<div class="modal-content">
+<div class="modal-header"><h3 id="modalSubKegTitle">Edit Sub Kegiatan</h3><button class="modal-close" onclick="closeModal('modalSubKeg')">&times;</button></div>
+<div class="modal-body">
+<input type="hidden" id="skId">
+<div class="form-group"><label>Kode Sub Kegiatan</label><input type="text" id="skKode"></div>
+<div class="form-group"><label>Nama Sub Kegiatan</label><textarea id="skNama" rows="2"></textarea></div>
+<div class="form-group"><label>Pagu (Rp)</label><input type="number" id="skPagu" min="0"></div>
+</div>
+<div class="modal-footer">
+<button class="btn btn-secondary" onclick="closeModal('modalSubKeg')">Batal</button>
+<button class="btn btn-primary" onclick="simpanSubKegiatan()">Simpan</button>
+</div>
+</div>
+</div>
+
+<!-- MODAL DATA MONEV -->
+<div class="modal" id="modalMonev">
+<div class="modal-content" style="max-width:800px">
+<div class="modal-header"><h3 id="modalMonevTitle">Data Monev</h3><button class="modal-close" onclick="closeModal('modalMonev')">&times;</button></div>
+<div class="modal-body">
+<input type="hidden" id="mId">
+<div class="form-group"><label>Uraian Aktivitas</label><textarea id="mAktivitas" rows="2"></textarea></div>
+<div class="form-row">
+<div class="form-group"><label>Realisasi Fisik (%)</label><input type="number" id="mFisik" min="0" max="100"></div>
+<div class="form-group"><label>Realisasi Keuangan (Rp)</label><input type="number" id="mKeuangan" min="0"></div>
+</div>
+<div class="form-group"><label>Faktor Pendorong</label><textarea id="mPendorong" rows="2"></textarea></div>
+<div class="form-group"><label>Faktor Penghambat</label><textarea id="mPenghambat" rows="2"></textarea></div>
+<div class="form-group"><label>Keluaran Sub Kegiatan</label><textarea id="mKeluaran" rows="2"></textarea></div>
+<div class="form-group"><label>Upload Dokumen</label><input type="file" id="mDokumen" multiple></div>
+<div id="listDokumen" style="margin-top:10px"></div>
+</div>
+<div class="modal-footer">
+<button class="btn btn-secondary" onclick="closeModal('modalMonev')">Batal</button>
+<button class="btn btn-primary" onclick="simpanMonev()">Simpan</button>
+</div>
+</div>
+</div>
+
+<!-- MODAL OPD -->
+<div class="modal" id="modalOPD">
+<div class="modal-content" style="max-width:500px">
+<div class="modal-header"><h3 id="modalOPDTitle">Tambah OPD</h3><button class="modal-close" onclick="closeModal('modalOPD')">&times;</button></div>
+<div class="modal-body">
+<input type="hidden" id="opdId">
+<div class="form-group"><label>Nama Lengkap OPD</label><input type="text" id="opdNama" placeholder="Contoh: Dinas Pendidikan"></div>
+<div class="form-group"><label>Singkatan</label><input type="text" id="opdSingkatan" placeholder="Contoh: DISP" style="text-transform:uppercase"></div>
+<div class="form-group"><label>Status</label><select id="opdStatus"><option value="1">Aktif</option><option value="0">Nonaktif</option></select></div>
+</div>
+<div class="modal-footer">
+<button class="btn btn-secondary" onclick="closeModal('modalOPD')">Batal</button>
+<button class="btn btn-primary" onclick="simpanOPD()">Simpan</button>
+</div>
+</div>
+</div>
+
+<!-- MODAL COPY -->
+<div class="modal" id="modalCopy">
+<div class="modal-content lg">
+<div class="modal-header"><h3><i class="fas fa-copy"></i> Copy Sub Kegiatan dari Periode Lain</h3><button class="modal-close" onclick="closeModal('modalCopy')">&times;</button></div>
+<div class="modal-body">
+<div class="alert alert-info"><i class="fas fa-info-circle"></i> Salin struktur sub kegiatan dari OPD/bulan lain ke periode aktif saat ini.</div>
+<div class="form-row-3">
+<div class="form-group"><label>Tahun Sumber</label><select id="copyTahun"></select></div>
+<div class="form-group"><label>Bulan Sumber</label><select id="copyBulan"></select></div>
+<div class="form-group"><label>OPD Sumber</label><select id="copyOPD"></select></div>
+</div>
+<div class="form-group"><label>Mode Copy</label>
+<select id="copyMode">
+<option value="tambah">Tambah yang belum ada (skip jika kode sudah ada)</option>
+<option value="timpa">Timpa semua (replace seluruh sub kegiatan)</option>
+</select></div>
+<div class="form-group"><label><input type="checkbox" id="copyDataMonev"> Sertakan data Monev</label></div>
+<div class="form-group"><label><input type="checkbox" id="copySelectAll" checked onchange="toggleAllCopy()"> Pilih semua sub kegiatan</label></div>
+<div id="copyPreview"></div>
+</div>
+<div class="modal-footer">
+<button class="btn btn-secondary" onclick="closeModal('modalCopy')">Batal</button>
+<button class="btn btn-primary" onclick="previewCopy()"><i class="fas fa-search"></i> Preview</button>
+<button class="btn btn-success" onclick="execCopy()"><i class="fas fa-copy"></i> Copy Sekarang</button>
+</div>
+</div>
+</div>
+
+<!-- MODAL TAMBAH TAHUN -->
+<div class="modal" id="modalTahun">
+<div class="modal-content" style="max-width:550px">
+<div class="modal-header"><h3><i class="fas fa-calendar-plus"></i> Tambah Tahun Monitoring</h3><button class="modal-close" onclick="closeModal('modalTahun')">&times;</button></div>
+<div class="modal-body">
+<div class="alert alert-info"><i class="fas fa-info-circle"></i> Tambahkan tahun baru untuk periode monitoring.</div>
+<div class="form-group"><label>Tahun Baru</label><input type="number" id="tahunBaru" min="2020" max="2100" placeholder="Contoh: 2027"></div>
+<div class="form-group"><label><input type="checkbox" id="copyDariTahunLama" onchange="toggleCopyDariTahun()"> Salin struktur dari tahun sebelumnya</label></div>
+<div class="form-group" id="groupTahunSumber" style="display:none"><label>Tahun Sumber</label><select id="tahunSumber"></select></div>
+<div class="form-group" id="groupBulanSumber" style="display:none"><label>Salin dari Bulan</label>
+<select id="bulanSumber">
+<option value="Desember">Desember (akhir tahun)</option>
+<option value="semua">Semua bulan (lengkap)</option>
+</select></div>
+</div>
+<div class="modal-footer">
+<button class="btn btn-secondary" onclick="closeModal('modalTahun')">Batal</button>
+<button class="btn btn-success" onclick="simpanTahunBaru()"><i class="fas fa-plus"></i> Buat Tahun</button>
+</div>
+</div>
+</div>
+
+<script>
+const BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+let DB = {opd:[], periode:{}};
+let currentFilter = {tahun:2026, bulan:'Agustus', opd:null, filter:'all'};
+let chartOPD=null, chartKomponen=null;
+let copyCache = [];
+
+function initDataAwal(){
+  DB.opd = [
+    {id:'BPBD', nama:'Badan Penanggulangan Bencana Daerah', singkatan:'BPBD', aktif:true},
+    {id:'DKISP', nama:'Dinas Komunikasi Dan Informatika, Statistik Dan Persandian', singkatan:'DKISP', aktif:true},
+    {id:'DPUPRP', nama:'Dinas Pekerjaan Umum, Penataan Ruang dan Pertanahan', singkatan:'DPUPRP', aktif:true}
+  ];
+  
+  const bpbd = [
+    ['1.05.01.2.01.0001','Penyusunan Dokumen Perencanaan Perangkat Daerah',5500000,1,1,1,1,1,1,1,''],
+    ['1.05.01.2.01.0002','Koordinasi dan Penyusunan Dokumen RKA-SKPD',4044000,1,1,1,1,1,1,1,''],
+    ['1.05.01.2.01.0003','Koordinasi dan Penyusunan Dokumen Perubahan RKA-SKPD',3784000,1,1,1,1,1,1,1,''],
+    ['1.05.01.2.01.0005','Koordinasi dan Penyusunan Perubahan DPA-SKPD',5050000,1,1,1,1,1,1,1,''],
+    ['1.05.01.2.01.0006','Koordinasi dan Penyusunan Laporan Capaian Kinerja dan Ikhtisar Realisasi Kinerja SKPD',4760500,1,1,1,1,1,1,1,''],
+    ['1.05.01.2.01.0007','Evaluasi Kinerja Perangkat Daerah',11729000,1,1,1,1,1,1,1,''],
+    ['1.05.01.2.01.0008','Penyelenggaraan Walidata Pendukung Statistik Sektoral Daerah',6146800,1,1,0,1,1,1,1,'realisasi keuangan 0'],
+    ['1.05.01.2.01.0010','Pelaksanaan Forum Perangkat Daerah',9975500,1,1,1,1,1,1,1,''],
+    ['1.05.01.2.02.0001','Penyediaan Gaji dan Tunjangan ASN',4764100000,1,1,1,1,1,1,1,''],
+    ['1.05.01.2.02.0003','Pelaksanaan Penatausahaan dan Pengujian/Verifikasi Keuangan SKPD',125480000,1,1,1,1,1,1,1,''],
+    ['1.05.01.2.02.0005','Koordinasi dan Penyusunan Laporan Keuangan Akhir Tahun SKPD',4834000,1,1,1,1,1,1,1,''],
+    ['1.05.01.2.02.0007','Koordinasi dan Penyusunan Laporan Keuangan Bulanan/Triwulanan/Semesteran SKPD',9617000,1,1,1,1,1,1,1,''],
+    ['1.05.01.2.03.0001','Penyusunan Perencanaan Kebutuhan Barang Milik Daerah SKPD',2582200,1,1,1,1,1,1,1,''],
+    ['1.05.01.2.03.0005','Rekonsiliasi dan Penyusunan Laporan Barang Milik Daerah pada SKPD',2000000,1,1,1,1,1,1,1,''],
+    ['1.05.01.2.03.0006','Penatausahaan Barang Milik Daerah pada SKPD',2500000,1,1,1,1,1,1,1,''],
+    ['1.05.01.2.05.0011','Bimbingan Teknis Implementasi Peraturan Perundang-Undangan',75000000,1,1,1,1,1,1,1,''],
+    ['1.05.01.2.06.0002','Penyediaan Peralatan dan Perlengkapan Kantor',91762000,1,1,1,1,1,1,1,''],
+    ['1.05.01.2.06.0004','Penyediaan Bahan Logistik Kantor',78327000,1,1,1,1,1,1,1,''],
+    ['1.05.01.2.06.0005','Penyediaan Barang Cetakan dan Penggandaan',28735200,1,1,1,1,1,1,1,''],
+    ['1.05.01.2.06.0008','Fasilitasi Kunjungan Tamu',5400000,1,1,1,1,1,1,1,''],
+    ['1.05.01.2.06.0009','Penyelenggaraan Rapat Koordinasi dan Konsultasi SKPD',285000000,1,1,1,1,1,1,1,''],
+    ['1.05.01.2.08.0001','Penyediaan Jasa Surat Menyurat',8825000,1,1,1,1,1,1,1,''],
+    ['1.05.01.2.08.0002','Penyediaan Jasa Komunikasi, Sumber Daya Air dan Listrik',117842510,1,1,1,1,1,1,1,''],
+    ['1.05.01.2.08.0004','Penyediaan Jasa Pelayanan Umum Kantor',655447000,1,1,1,1,1,1,1,''],
+    ['1.05.01.2.09.0001','Pemeliharaan Kendaraan Perorangan Dinas',42750000,1,1,1,1,1,1,1,''],
+    ['1.05.01.2.09.0002','Pemeliharaan Kendaraan Dinas Operasional',716250000,1,1,1,1,1,1,1,''],
+    ['1.05.01.2.09.0006','Pemeliharaan Peralatan dan Mesin Lainnya',248630000,1,1,1,1,1,1,1,''],
+    ['1.05.01.2.09.0009','Pemeliharaan/Rehabilitasi Gedung Kantor dan Bangunan Lainnya',49876000,1,1,1,1,1,1,1,''],
+    ['1.05.03.2.01.0007','Sosialisasi, Komunikasi, Informasi dan Edukasi Rawan Bencana',291151000,1,1,1,1,1,1,1,''],
+    ['1.05.03.2.01.0008','Penyusunan Kajian Risiko Bencana Kabupaten/Kota',39112000,1,1,1,1,1,1,1,''],
+    ['1.05.03.2.02.0015','Penyediaan Peralatan Perlindungan dan Kesiapsiagaan Bencana',108930000,1,0,0,1,1,0,1,'realisasi fisik & keuangan 0'],
+    ['1.05.03.2.02.0018','Gladi Kesiapsiagaan Terhadap Bencana',198316000,1,1,1,1,1,1,1,''],
+    ['1.05.03.2.02.0019','Pelatihan Keluarga Tanggap Bencana Alam',120944000,1,1,1,1,1,1,1,''],
+    ['1.05.03.2.02.0020','Penguatan Kapasitas Kawasan untuk Pencegahan dan Kesiapsiagaan Bencana',338193000,1,1,1,1,1,1,1,''],
+    ['1.05.03.2.02.0022','Penyusunan Rencana Kontijensi Kabupaten/Kota',255530000,1,1,0,1,1,0,1,'realisasi keuangan 0'],
+    ['1.05.03.2.02.0028','Pelatihan Pencegahan dan Mitigasi Bencana',55020000,1,1,1,1,1,1,1,''],
+    ['1.05.03.2.03.0002','Respon Cepat Darurat Bencana',134882500,1,1,1,1,1,1,1,''],
+    ['1.05.03.2.03.0003','Pencarian, Pertolongan dan Evakuasi Korban Bencana',49940000,1,1,1,1,1,1,1,''],
+    ['1.05.03.2.03.0008','Peningkatan Kapasitas SDM Aparatur Penanganan Darurat',63140000,1,1,1,1,1,1,1,''],
+    ['1.05.03.2.03.0009','Penyediaan Logistik Penyelamatan dan Evakuasi Korban Bencana',699955000,1,1,1,1,1,1,1,''],
+    ['1.05.03.2.03.0012','Aktivasi Sistem Komando Penanganan Darurat Bencana',1042666000,1,1,1,1,1,1,1,''],
+    ['1.05.03.2.04.0003','Kerja Sama antar Lembaga dan Kemitraan Penanggulangan Bencana',40185000,1,1,1,1,1,1,1,''],
+    ['1.05.03.2.04.0005','Pembinaan dan Pengawasan Penyelenggaraan Penanggulangan Bencana',30160000,1,1,1,1,1,1,1,''],
+    ['1.05.03.2.04.0007','Peningkatan Kapasitas SDM Aparatur Penanggulangan Bencana',75000000,1,1,1,1,1,1,1,''],
+    ['1.05.03.2.04.0008','Bimbingan Teknis Pasca Bencana',37360000,1,1,0,1,1,0,1,'realisasi keuangan 0'],
+    ['1.05.03.2.04.0011','Peningkatan Partisipasi Masyarakat dalam Penanganan Pascabencana',18038000,1,1,1,1,1,1,1,''],
+    ['1.05.03.2.04.0015','Penyusunan Kajian Kebutuhan Pascabencana dan Rencana R3P',73508000,1,1,1,1,1,0,1,'keluaran belum update']
+  ];
+  
+  const dkisp = [
+    ['2.16.01.2.01.0001','Penyusunan Dokumen Perencanaan Perangkat Daerah',6691000,1,1,1,1,1,1,1,''],
+    ['2.16.01.2.01.0002','Koordinasi dan Penyusunan Dokumen RKA-SKPD',8629000,1,1,1,1,1,1,1,''],
+    ['2.16.01.2.01.0003','Koordinasi dan Penyusunan Dokumen Perubahan RKA-SKPD',7379000,1,1,1,1,1,1,1,''],
+    ['2.16.01.2.01.0004','Koordinasi dan Penyusunan DPA-SKPD',7358200,1,1,1,1,1,1,1,'sudah selesai untuk yang murni'],
+    ['2.16.01.2.01.0005','Koordinasi dan Penyusunan Perubahan DPA-SKPD',7344000,1,1,1,1,1,1,1,''],
+    ['2.16.01.2.01.0006','Koordinasi dan Penyusunan Laporan Capaian Kinerja SKPD',7641000,1,1,1,1,1,1,1,''],
+    ['2.16.01.2.01.0007','Evaluasi Kinerja Perangkat Daerah',7502000,1,1,1,1,1,1,1,''],
+    ['2.16.01.2.01.0008','Penyelenggaraan Walidata Pendukung Statistik Sektoral',3725000,1,1,1,1,1,1,1,''],
+    ['2.16.01.2.01.0009','Pelaksanaan Pengumpulan Data Statistik Sektoral',2800000,1,1,1,1,1,1,1,'realisasi fisik lebih rendah dari keuangan'],
+    ['2.16.01.2.01.0010','Pelaksanaan Forum Perangkat Daerah',24035200,1,1,1,1,1,1,0,'1 lagi di perubahan'],
+    ['2.16.01.2.02.0001','Penyediaan Gaji dan Tunjangan ASN',5354900000,1,1,1,1,1,1,1,'kadis 1, staf 2 mutasi'],
+    ['2.16.01.2.02.0003','Pelaksanaan Penatausahaan dan Verifikasi Keuangan SKPD',162807800,1,1,1,1,1,1,1,''],
+    ['2.16.01.2.02.0005','Koordinasi dan Penyusunan Laporan Keuangan Akhir Tahun SKPD',10036700,1,1,1,1,1,1,1,'kegiatan sudah selesai'],
+    ['2.16.01.2.02.0007','Koordinasi dan Penyusunan Laporan Keuangan Bulanan SKPD',3983400,1,1,1,1,1,1,1,''],
+    ['2.16.01.2.03.0006','Penatausahaan Barang Milik Daerah pada SKPD',4120800,1,1,1,1,1,1,1,''],
+    ['2.16.01.2.06.0001','Penyediaan Komponen Instalasi Listrik/Penerangan',10805000,1,1,1,1,1,1,1,'perlu data dukung dokumentasi'],
+    ['2.16.01.2.06.0002','Penyediaan Peralatan dan Perlengkapan Kantor',29176000,1,1,1,1,1,1,1,'kegiatan sudah selesai'],
+    ['2.16.01.2.06.0004','Penyediaan Bahan Logistik Kantor',23449000,1,1,1,1,1,1,1,'perlu data dukung dokumentasi'],
+    ['2.16.01.2.06.0005','Penyediaan Barang Cetakan dan Penggandaan',6130000,1,1,1,1,1,1,1,'kegiatan sudah selesai'],
+    ['2.16.01.2.06.0008','Fasilitasi Kunjungan Tamu',5600000,1,1,1,1,1,1,1,''],
+    ['2.16.01.2.06.0009','Penyelenggaraan Rapat Koordinasi dan Konsultasi SKPD',115160000,1,1,1,1,1,1,1,'realisasi fisik lebih rendah'],
+    ['2.16.01.2.08.0001','Penyediaan Jasa Surat Menyurat',3000000,1,1,1,1,1,1,1,''],
+    ['2.16.01.2.08.0002','Penyediaan Jasa Komunikasi, Sumber Daya Air dan Listrik',270956000,1,1,1,1,1,1,1,''],
+    ['2.16.01.2.08.0004','Penyediaan Jasa Pelayanan Umum Kantor',2011924000,1,1,1,1,1,1,1,''],
+    ['2.16.01.2.09.0001','Pemeliharaan Kendaraan Perorangan Dinas',42750000,1,1,1,1,1,1,1,''],
+    ['2.16.01.2.09.0002','Pemeliharaan Kendaraan Dinas Operasional',368320000,1,1,1,1,1,1,1,''],
+    ['2.16.01.2.09.0006','Pemeliharaan Peralatan dan Mesin Lainnya',15030000,1,1,1,1,1,1,1,''],
+    ['2.16.01.2.09.0011','Pemeliharaan/Rehabilitasi Sarana Prasarana Kantor',29600000,1,1,1,1,1,1,1,'perlu data dukung dokumentasi'],
+    ['2.16.02.2.01.0015','Kemitraan Komunikasi dengan Komunitas Informasi Masyarakat',39850000,1,1,1,1,1,1,0,'48 Komunitas, belum terserap izin radio'],
+    ['2.16.02.2.01.0017','Pelayanan Informasi Publik',3524000,1,1,1,1,1,1,1,'5 Permohonan via web'],
+    ['2.16.02.2.01.0019','Monitoring Informasi Kebijakan, Opini, dan Aspirasi Publik',25849000,1,1,1,1,1,1,1,'78 Rekomendasi via lapor'],
+    ['2.16.02.2.01.0021','Pengelolaan Media Komunikasi Publik',3275000000,1,1,1,1,1,1,1,'biaya rutin'],
+    ['2.16.02.2.01.0023','Penyusunan Konten',390700000,1,1,1,1,1,1,1,''],
+    ['2.16.03.2.01.0004','Pengelolaan Nama Domain dan Sub Domain',98855840,1,1,1,1,1,1,1,'realisasi fisik lebih rendah'],
+    ['2.16.03.2.02.0032','Koordinasi Pembangunan Aplikasi SPBE',7000000,1,1,1,1,1,1,1,''],
+    ['2.16.03.2.02.0034','Penyelenggaraan Sistem Penghubung Layanan Pemerintah',9800000,1,1,1,1,1,1,1,''],
+    ['2.16.03.2.02.0035','Koordinasi dan Fasilitasi Promosi Literasi SPBE',14989440,1,1,1,1,1,1,1,''],
+    ['2.16.03.2.02.0036','Penyediaan Akses Internet',3345046000,1,1,1,1,1,1,1,'pergantian direksi penyedia'],
+    ['2.16.03.2.02.0023','Koordinasi dan Fasilitasi Kabupaten Cerdas',217983330,1,1,1,1,1,1,1,'realisasi fisik lebih rendah'],
+    ['2.20.02.2.01.0018','Pemenuhan Prinsip Satu Data Indonesia',24770000,1,1,1,1,1,0,1,'belum tersubmit'],
+    ['2.20.02.2.01.0009','Peningkatan Kualitas Statistik Sektoral',28088800,1,1,1,1,1,0,1,'di submit, belum ada persentase'],
+    ['2.20.02.2.01.0011','Pelaksanaan Proses Bisnis Statistik Sektoral',104422000,1,1,1,1,1,1,1,'di submit, revisi target'],
+    ['2.20.02.2.01.0022','Koordinasi dan Kolaborasi Statistik Sektoral',16400000,1,1,1,1,1,1,1,''],
+    ['2.21.02.2.01.0003','Pelaksanaan Keamanan Informasi Pemerintahan Daerah',11998500,1,1,1,1,1,1,1,'sub kegiatan sudah selesai'],
+    ['2.21.02.2.01.0006','Pengelolaan Sumber Daya Keamanan Informasi',13741500,1,1,1,1,1,1,1,'sub kegiatan sudah selesai'],
+    ['2.21.02.2.01.0007','Penyediaan Layanan Keamanan Informasi dan Persandian',4999800,1,1,1,1,1,1,1,''],
+    ['2.21.02.2.01.0008','Penetapan Kebijakan Tata Kelola Keamanan Informasi',24250000,1,1,1,1,1,1,1,'target ropk harap diperbaiki'],
+    ['2.21.02.2.02.0002','Operasionalisasi Layanan Keamanan Informasi',22339800,1,1,1,1,1,1,1,'target ropk harap diperbaiki']
+  ];
+  
+  const dpuprp = [
+    ['1.03.01.2.01.0001','Penyusunan Dokumen Perencanaan Perangkat Daerah',30922000,1,1,1,1,1,1,1,''],
+    ['1.03.01.2.01.0004','Koordinasi dan Penyusunan DPA-SKPD',10000000,1,1,1,1,1,0,1,'Update realisasi keluaran'],
+    ['1.03.01.2.01.0006','Koordinasi dan Penyusunan Laporan Capaian Kinerja SKPD',10000000,1,1,1,1,1,1,1,''],
+    ['1.03.01.2.01.0008','Penyelenggaraan Walidata Pendukung Statistik',10000000,1,1,1,1,1,1,1,''],
+    ['1.03.01.2.01.0009','Pelaksanaan Pengumpulan Data Statistik Sektoral',10000000,1,1,1,1,1,1,1,''],
+    ['1.03.01.2.02.0001','Penyediaan Gaji dan Tunjangan ASN',10019107512,1,1,1,1,1,1,1,'Update realisasi keluaran'],
+    ['1.03.01.2.02.0003','Pelaksanaan Penatausahaan dan Verifikasi Keuangan',478440000,1,1,1,1,1,1,1,''],
+    ['1.03.01.2.02.0005','Koordinasi dan Penyusunan Laporan Keuangan Akhir Tahun',9750000,1,0,1,1,1,0,1,'Realisasi lebih rendah dari bulan sebelumnya'],
+    ['1.03.01.2.02.0007','Koordinasi dan Penyusunan Laporan Keuangan Bulanan',3800000,1,1,1,1,1,1,1,''],
+    ['1.03.01.2.02.0008','Penyusunan Pelaporan dan Analisis Prognosis Anggaran',3751000,1,1,1,1,1,0,1,'Update realisasi keluaran'],
+    ['1.03.01.2.03.0006','Penatausahaan Barang Milik Daerah pada SKPD',17720000,1,1,1,1,1,0,1,'Update realisasi keluaran'],
+    ['1.03.01.2.05.0011','Bimbingan Teknis Implementasi Peraturan Perundang-Undangan',100000000,1,1,1,1,1,1,1,''],
+    ['1.03.01.2.06.0001','Penyediaan Komponen Instalasi Listrik',22110000,1,1,1,1,1,1,0,''],
+    ['1.03.01.2.06.0002','Penyediaan Peralatan dan Perlengkapan Kantor',66354000,1,1,1,1,1,1,0,''],
+    ['1.03.01.2.06.0004','Penyediaan Bahan Logistik Kantor',175467000,1,1,1,1,1,1,1,''],
+    ['1.03.01.2.06.0005','Penyediaan Barang Cetakan dan Penggandaan',37210000,1,1,1,1,1,1,0,''],
+    ['1.03.01.2.06.0008','Fasilitasi Kunjungan Tamu',14000000,1,1,1,1,1,1,1,''],
+    ['1.03.01.2.06.0009','Penyelenggaraan Rapat Koordinasi dan Konsultasi SKPD',815697500,1,1,1,1,1,1,1,''],
+    ['1.03.01.2.08.0001','Penyediaan Jasa Surat Menyurat',3177000,1,1,1,1,1,1,1,''],
+    ['1.03.01.2.08.0002','Penyediaan Jasa Komunikasi, Sumber Daya Air dan Listrik',412900000,1,1,1,1,1,1,1,''],
+    ['1.03.01.2.08.0004','Penyediaan Jasa Pelayanan Umum Kantor',2503440000,1,1,1,1,1,1,1,''],
+    ['1.03.01.2.09.0001','Pemeliharaan Kendaraan Perorangan Dinas',38990000,1,1,1,1,1,0,1,'Update realisasi keluaran'],
+    ['1.03.01.2.09.0002','Pemeliharaan Kendaraan Dinas Operasional',967970000,1,1,1,1,1,0,1,'Update realisasi keluaran'],
+    ['1.03.01.2.09.0003','Pemeliharaan Alat Besar',100000000,1,1,1,1,1,0,1,'Update realisasi keluaran'],
+    ['1.03.01.2.09.0006','Pemeliharaan Peralatan dan Mesin Lainnya',90080000,1,1,1,1,1,0,1,'Update realisasi keluaran'],
+    ['1.03.01.2.09.0009','Pemeliharaan/Rehabilitasi Gedung Kantor',126000000,1,1,1,1,1,0,1,'Update realisasi keluaran'],
+    ['1.03.02.2.01.0073','Operasi dan Pemeliharaan Sungai',1013620000,1,1,1,1,1,1,1,''],
+    ['1.03.02.2.01.0093','Normalisasi/Restorasi Sungai',496020000,1,1,1,1,1,1,1,''],
+    ['1.03.02.2.01.0109','Peningkatan Bangunan Perkuatan Tebing',2709248000,1,1,1,1,1,1,1,''],
+    ['1.03.02.2.01.0107','Pembangunan Unit Air Baku',219885000,1,1,1,1,1,1,1,'harap dijelaskan faktor penghambat'],
+    ['1.03.02.2.01.0118','Penyusunan Pola dan Rencana Pengelolaan SDA',65600000,1,1,1,1,1,1,1,''],
+    ['1.03.02.2.01.0120','Penyusunan Rencana Teknis Pengendali Banjir',169890000,1,1,1,1,1,1,1,''],
+    ['1.03.02.2.01.0127','Penyusunan Rencana Teknis Air Tanah dan Air Baku',77800000,1,1,1,1,1,1,0,''],
+    ['1.03.02.2.02.0014','Rehabilitasi Jaringan Irigasi Permukaan',914832000,1,1,1,1,1,1,1,''],
+    ['1.03.02.2.02.0023','Operasi dan Pemeliharaan Jaringan Irigasi Rawa',2915145500,1,1,1,1,1,1,1,''],
+    ['1.03.02.2.02.0044','Operasional Kelembagaan Pengelola Irigasi',314870000,1,1,1,1,1,1,1,''],
+    ['1.03.02.2.02.0050','Penyusunan Dukungan Teknis Irigasi dan Rawa',150000000,1,1,1,1,1,1,1,''],
+    ['1.03.02.2.02.0051','Pembangunan Bendung Irigasi',791029500,1,1,1,1,1,1,0,'harap dijelaskan faktor penghambat'],
+    ['1.03.03.2.01.0026','Peningkatan SPAM Jaringan Perpipaan',7931060900,1,1,1,1,1,1,1,''],
+    ['1.03.03.2.01.0028','Pembangunan SPAM Jaringan Perpipaan',871060000,1,1,1,1,1,1,1,'harap dijelaskan faktor penghambat'],
+    ['1.03.03.2.01.0030','Fasilitasi Kerja Sama Penyelenggaraan SPAM',417052000,1,1,1,1,1,0,0,'Update realisasi keluaran'],
+    ['1.03.03.2.01.0031','Optimalisasi SPAM Jaringan Perpipaan',1003600000,1,1,1,1,1,1,0,'perbarui aktivitas, realisasi > 90%'],
+    ['1.03.03.2.01.0032','Perluasan SPAM Jaringan Perpipaan',8347103800,1,1,1,1,1,0,0,'Update realisasi keluaran'],
+    ['1.03.05.2.01.0037','Penyediaan Sarana Pengangkutan Lumpur Tinja',404375000,1,1,1,1,1,1,1,''],
+    ['1.03.05.2.01.0038','Operasi dan Pemeliharaan SPALD',120700000,1,1,1,1,1,1,1,''],
+    ['1.03.05.2.01.0040','Pembinaan Masyarakat Pengembangan SPALD',334966000,1,1,1,1,1,1,1,''],
+    ['1.03.05.2.01.0044','Penyediaan Unit Pengolahan Setempat',6740664000,1,1,1,1,1,1,1,''],
+    ['1.03.06.2.01.0024','Peningkatan Sistem Drainase Perkotaan',705301000,1,1,1,1,1,1,1,'harap dijelaskan faktor penghambat'],
+    ['1.03.06.2.01.0027','Penyusunan Outline Plan Kawasan Genangan',75000000,1,1,1,1,1,1,1,''],
+    ['1.03.06.2.01.0028','Rehabilitasi Sistem Drainase Perkotaan',828086000,1,1,1,1,1,1,1,''],
+    ['1.03.06.2.01.0029','Pembangunan Sistem Drainase Perkotaan',4690252500,1,1,1,1,1,1,1,''],
+    ['1.03.06.2.01.0030','Penyusunan Rencana Sistem Drainase Perkotaan',200000000,1,1,1,1,1,1,1,''],
+    ['1.03.06.2.01.0031','Operasi dan Pemeliharaan Sistem Drainase',1606311703,1,1,1,1,1,1,1,''],
+    ['1.03.08.2.01.0019','Penyusunan Kebijakan Penyelenggaraan Bangunan Gedung',53490000,1,1,1,1,1,1,1,'harap dijelaskan faktor penghambat'],
+    ['1.03.08.2.01.0023','Penyelenggaraan Penerbitan PBG dan SLF',664368000,1,1,1,1,1,0,1,'Update realisasi keluaran'],
+    ['1.03.09.2.01.0010','Penyusunan Rencana Penataan Bangunan dan Lingkungan',503000000,1,1,1,1,1,0,1,'Update realisasi keluaran'],
+    ['1.03.09.2.01.0011','Penataan Bangunan dan Lingkungan',46094555800,1,1,1,1,1,0,1,'perbarui aktivitas, realisasi > 50%'],
+    ['1.03.10.2.01.0029','Penyusunan Rencana Jaringan Jalan',7457662400,1,1,1,1,1,1,1,'Update realisasi keluaran'],
+    ['1.03.10.2.01.0043','Survey Kondisi Jalan/Jembatan',566500000,1,1,1,1,1,1,1,''],
+    ['1.03.10.2.01.0051','Pemeliharaan Rutin Jalan',11256973040,1,1,1,1,1,1,1,''],
+    ['1.03.10.2.01.0053','Pembangunan Jalan',10500644700,1,1,1,1,1,1,1,''],
+    ['1.03.10.2.01.0055','Rehabilitasi Jalan',51793560000,1,1,1,1,1,1,1,''],
+    ['1.03.10.2.01.0056','Pemeliharaan Berkala Jalan',9455082500,1,1,1,1,1,1,1,''],
+    ['1.03.10.2.01.0057','Penggantian Jembatan',11569783860,1,1,1,1,1,1,1,''],
+    ['1.03.10.2.01.0058','Rehabilitasi Jembatan',1401960000,1,1,1,1,1,1,1,''],
+    ['1.03.10.2.01.0059','Rekonstruksi Jalan',102628032940,1,1,1,1,1,1,1,''],
+    ['1.03.10.2.01.0067','Pemeliharaan Rutin Jembatan',5227400000,1,1,1,1,1,1,1,'perbarui aktivitas, realisasi > 50%'],
+    ['1.03.10.2.01.0069','Pembangunan Jembatan',10209603860,1,1,1,1,1,1,1,'perbarui aktivitas, realisasi > 50%'],
+    ['1.03.11.2.01.0010','Fasilitasi Sertifikasi Tenaga Kerja Konstruksi',181555600,1,1,1,1,1,1,1,''],
+    ['1.03.11.2.01.0011','Pembinaan Kelembagaan Jasa Konstruksi',134200000,1,1,1,1,1,1,1,''],
+    ['1.03.11.2.01.0016','Pelatihan Tenaga Kerja Konstruksi',19206800,1,1,1,1,1,1,0,'harap dijelaskan faktor penghambat'],
+    ['1.03.11.2.02.0013','Penyediaan Data dan Informasi Jasa Konstruksi',26136000,1,1,1,1,1,1,1,''],
+    ['1.03.11.2.04.0004','Pengawasan Penyelenggaraan Jasa Konstruksi',17823200,1,1,1,1,1,1,1,''],
+    ['1.03.11.2.04.0006','Pembinaan Tertib Usaha Jasa Konstruksi',69392800,1,1,1,1,1,1,1,''],
+    ['1.03.12.2.01.0003','Penetapan Kebijakan Penataan Ruang',224470000,1,1,1,1,1,0,0,'Update realisasi keluaran'],
+    ['1.03.12.2.01.0006','Pelaksanaan Persetujuan Substansi RDTR',601800000,1,1,1,1,1,1,0,''],
+    ['1.03.12.2.01.0010','Penetapan RDTR Kabupaten/Kota',1055055000,1,1,1,1,1,1,0,''],
+    ['1.03.12.2.01.0011','Penetapan RTRW Kabupaten/Kota',214265000,1,1,1,1,1,1,1,'pada Perubahan tidak dilaksanakan'],
+    ['1.03.12.2.01.0013','Sosialisasi Kebijakan Penataan Ruang',34600000,1,1,1,1,1,1,0,''],
+    ['1.03.12.2.03.0003','Koordinasi Penyelenggaraan Penataan Ruang',177871400,1,1,1,1,1,1,1,''],
+    ['1.03.12.2.04.0004','Koordinasi Pelaksanaan Penataan Ruang',28150000,1,1,1,1,1,1,0,''],
+    ['1.03.12.2.04.0008','Penilaian Kesesuaian Kegiatan Pemanfaatan Ruang',186000000,1,1,1,1,1,1,0,''],
+    ['1.03.12.2.04.0011','Pengawasan TURBINLAK',94425200,1,1,1,1,1,1,0,''],
+    ['1.03.12.2.04.0012','Penilaian Perwujudan RTR',88412600,1,1,1,1,1,1,1,''],
+    ['2.10.04.2.01.0004','Mediasi Penyelesaian Kasus Pertanahan',64583600,1,1,1,1,1,1,1,''],
+    ['2.10.04.2.01.0005','Inventarisasi Kasus Pertanahan',46751600,1,1,1,1,1,1,1,''],
+    ['2.10.06.2.01.0004','Koordinasi Penataan Akses Redistribusi Tanah',2240000,1,1,1,1,1,1,1,''],
+    ['2.10.06.2.01.0006','Koordinasi Penataan Aset Reforma Agraria',8575000,1,1,1,1,1,1,1,''],
+    ['2.10.09.2.01.0001','Koordinasi Pemberian Izin Membuka Tanah',1652652800,1,1,1,1,1,1,1,''],
+    ['2.10.10.2.01.0001','Koordinasi Perencanaan Penggunaan Tanah',8168000,1,1,1,1,1,1,1,''],
+    ['2.10.10.2.01.0003','Koordinasi Pelaksanaan Konsolidasi Tanah',37006000,1,1,1,1,1,1,1,'']
+  ];
+  
+  function buildSubKeg(arr){
+    return arr.map((r,i)=>({
+      id: r[0]+'_'+i, kode: r[0], nama: r[1], pagu: r[2],
+      uraianAktivitas: r[3]?'Aktivitas terlaksana':'',
+      realisasiFisik: r[4]?95:0, realisasiKeuangan: r[5]?1000000:0,
+      faktorPendorong: r[6]?'Koordinasi baik':'', faktorPenghambat: '',
+      keluaran: r[7]?'Dokumen/output terlaksana':'',
+      dokumen: r[8]?['dokumen.pdf']:[],
+      cekAktivitas: !!r[3], cekFisik: !!r[4], cekKeuangan: !!r[5],
+      cekPendorong: !!r[6], cekPenghambat: false, cekKeluaran: !!r[7], cekDokumen: !!r[8],
+      keterangan: r[9] || '',
+      manualOverride: {aktivitas:false,fisik:false,keuangan:false,pendorong:false,penghambat:false,keluaran:false,dokumen:false}
+    }));
+  }
+  
+  DB.periode = {
+    '2026':{
+      'Agustus':{
+        'BPBD': buildSubKeg(bpbd),
+        'DKISP': buildSubKeg(dkisp),
+        'DPUPRP': buildSubKeg(dpuprp)
+      }
+    }
+  };
+}
+
+function saveDB(){localStorage.setItem('monev_db',JSON.stringify(DB))}
+function saveSidebarState(){localStorage.setItem('monev_sidebar',document.getElementById('sidebar').classList.contains('minimized')?'1':'0')}
+function loadSidebarState(){if(localStorage.getItem('monev_sidebar')==='1'){document.getElementById('sidebar').classList.add('minimized');document.getElementById('toggleIcon').className='fas fa-chevron-right'}}
+function loadDB(){
+  const d = localStorage.getItem('monev_db');
+  if(d){
+    DB = JSON.parse(d);
+    let migrated = false;
+    Object.values(DB.periode).forEach(p=>{
+      Object.values(p).forEach(b=>{
+        Object.values(b).forEach(list=>{
+          list.forEach(s=>{
+            if(s.cekAktivitas===undefined){
+              s.cekAktivitas = !!(s.uraianAktivitas && s.uraianAktivitas.trim());
+              s.cekFisik = (s.realisasiFisik||0) > 0;
+              s.cekKeuangan = (s.realisasiKeuangan||0) > 0;
+              s.cekPendorong = !!(s.faktorPendorong && s.faktorPendorong.trim());
+              s.cekPenghambat = !!(s.faktorPenghambat && s.faktorPenghambat.trim());
+              s.cekKeluaran = !!(s.keluaran && s.keluaran.trim());
+              s.cekDokumen = !!(s.dokumen && s.dokumen.length>0);
+              migrated = true;
+            }
+            if(s.keterangan===undefined){s.keterangan=''; migrated=true;}
+            if(!s.manualOverride){
+              s.manualOverride = {aktivitas:false,fisik:false,keuangan:false,pendorong:false,penghambat:false,keluaran:false,dokumen:false};
+              migrated=true;
+            }
+          });
+        });
+      });
+    });
+    if(migrated) saveDB();
+  } else {initDataAwal(); saveDB()}
+}
+
+function fmtRp(n){return 'Rp '+(n||0).toLocaleString('id-ID')}
+function fmtPct(n){return (n||0).toFixed(2).replace('.',',')+'%'}
+function getStatus(pct){
+  if(pct>=90) return {cls:'green',label:'Baik'};
+  if(pct>=70) return {cls:'yellow',label:'Cukup'};
+  return {cls:'red',label:'Kurang'};
+}
+function getSubKegList(tahun,bulan,opd){
+  const p = DB.periode[tahun]; if(!p) return [];
+  const b = p[bulan]; if(!b) return [];
+  return b[opd]||[];
+}
+function ensurePeriode(tahun,bulan,opd){
+  if(!DB.periode[tahun]) DB.periode[tahun]={};
+  if(!DB.periode[tahun][bulan]) DB.periode[tahun][bulan]={};
+  if(!DB.periode[tahun][bulan][opd]) DB.periode[tahun][bulan][opd]=[];
+}
+
+function hitungKomponen(list){
+  const total = list.length;
+  if(total===0) return {aktivitas:0,fisik:0,keuangan:0,pendorong:0,penghambat:0,keluaran:0,dokumen:0,nilai:0};
+  let a=0,f=0,k=0,p=0,ph=0,o=0,d=0;
+  list.forEach(s=>{
+    if(s.cekAktivitas) a++; if(s.cekFisik) f++; if(s.cekKeuangan) k++;
+    if(s.cekPendorong) p++; if(s.cekPenghambat) ph++; if(s.cekKeluaran) o++; if(s.cekDokumen) d++;
+  });
+  const pAkt=(a/total)*100,pFis=(f/total)*100,pKeu=(k/total)*100;
+  const pPen=(p/total)*100,pPhg=(ph/total)*100,pKel=(o/total)*100,pDok=(d/total)*100;
+  const nilai = (pAkt+pFis+pKeu+pPen+pPhg+pKel+pDok)/7;
+  return {aktivitas:pAkt,fisik:pFis,keuangan:pKeu,pendorong:pPen,penghambat:pPhg,keluaran:pKel,dokumen:pDok,nilai};
+}
+function isLengkap(s){
+  return s.cekAktivitas && s.cekFisik && s.cekKeuangan && s.cekPendorong && s.cekPenghambat && s.cekKeluaran && s.cekDokumen;
+}
+
+function toggleSidebar(){
+  const sb = document.getElementById('sidebar');
+  const icon = document.getElementById('toggleIcon');
+  sb.classList.toggle('minimized');
+  icon.className = sb.classList.contains('minimized')?'fas fa-chevron-right':'fas fa-chevron-left';
+  saveSidebarState();
+  setTimeout(()=>{if(chartOPD)chartOPD.resize();if(chartKomponen)chartKomponen.resize()},350);
+}
+
+function goToPage(page){
+  document.querySelectorAll('.menu-item').forEach(x=>x.classList.remove('active'));
+  document.querySelector(`[data-page="${page}"]`).classList.add('active');
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  if(window.innerWidth<=768) document.getElementById('sidebar').classList.remove('open');
+  renderAll();
+}
+
+function initFilter(){
+  const fT = document.getElementById('filterTahun');
+  const fB = document.getElementById('filterBulan');
+  const fO = document.getElementById('filterOPD');
+  
+  const tahunList = Object.keys(DB.periode).sort();
+  if(tahunList.length===0) tahunList.push('2026');
+  fT.innerHTML = tahunList.map(t=>`<option value="${t}">${t}</option>`).join('');
+  if(!tahunList.includes(String(currentFilter.tahun))) currentFilter.tahun = parseInt(tahunList[0]);
+  fT.value = currentFilter.tahun;
+  
+  fB.innerHTML = BULAN.map(b=>`<option value="${b}">${b}</option>`).join('');
+  fB.value = currentFilter.bulan;
+  
+  const opdAktif = DB.opd.filter(o=>o.aktif);
+  fO.innerHTML = '<option value="all">Semua OPD</option>' + opdAktif.map(o=>`<option value="${o.id}">${o.singkatan} - ${o.nama}</option>`).join('');
+  fO.value = currentFilter.opd || 'all';
+  
+  fT.onchange = ()=>{currentFilter.tahun=parseInt(fT.value); renderAll()};
+  fB.onchange = ()=>{currentFilter.bulan=fB.value; renderAll()};
+  fO.onchange = ()=>{currentFilter.opd=fO.value==='all'?null:fO.value; renderAll()};
+}
+
+function toggleCek(id, field){
+  const t = currentFilter.tahun, b = currentFilter.bulan, opd = currentFilter.opd;
+  const s = getSubKegList(t,b,opd).find(x=>x.id===id);
+  if(!s) return;
+  const map = {'aktivitas':'cekAktivitas','fisik':'cekFisik','keuangan':'cekKeuangan','pendorong':'cekPendorong','penghambat':'cekPenghambat','keluaran':'cekKeluaran','dokumen':'cekDokumen'};
+  s[map[field]] = !s[map[field]];
+  s.manualOverride[field] = true;
+  saveDB();
+  renderMonev();renderDashboard();renderRekapKab();
+}
+
+function editKeterangan(id, el){
+  const t = currentFilter.tahun, b = currentFilter.bulan, opd = currentFilter.opd;
+  const s = getSubKegList(t,b,opd).find(x=>x.id===id);
+  if(!s) return;
+  const current = s.keterangan || '';
+  el.innerHTML = `<input type="text" value="${current.replace(/"/g,'&quot;')}" placeholder="Ketik catatan...">`;
+  const input = el.querySelector('input');
+  input.focus(); input.select();
+  const save = ()=>{
+    s.keterangan = input.value.trim();
+    saveDB();
+    renderKeteranganCell(el, s);
+  };
+  input.onblur = save;
+  input.onkeydown = (e)=>{
+    if(e.key==='Enter'){e.preventDefault();save();}
+    if(e.key==='Escape'){renderKeteranganCell(el, s);}
+  };
+}
+function renderKeteranganCell(el, s){
+  if(s.keterangan && s.keterangan.trim()){
+    el.className = 'ket-cell';
+    el.innerHTML = `<i class="fas fa-sticky-note" style="color:#f59e0b;margin-right:4px;font-size:10px"></i>${escapeHtml(s.keterangan)}`;
+    el.title = s.keterangan;
+  } else {
+    el.className = 'ket-cell empty';
+    el.innerHTML = '<i class="fas fa-pen" style="margin-right:4px;font-size:10px"></i>Klik untuk menambah catatan';
+    el.title = 'Klik untuk menambah catatan';
+  }
+}
+function escapeHtml(str){return (str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+// ===== SCROLL INDICATOR - SELALU TERLIHAT =====
+function setupScrollIndicator(wrapper){
+  if(!wrapper) return;
+  const check = ()=>{
+    const canScrollRight = wrapper.scrollWidth - wrapper.scrollLeft - wrapper.clientWidth > 5;
+    const canScrollLeft = wrapper.scrollLeft > 5;
+    wrapper.classList.toggle('can-scroll-right', canScrollRight);
+    wrapper.classList.toggle('can-scroll-left', canScrollLeft);
+  };
+  wrapper.addEventListener('scroll', check);
+  window.addEventListener('resize', check);
+  setTimeout(check, 100);
+  // Observer untuk update saat konten berubah
+  const observer = new MutationObserver(()=>setTimeout(check,50));
+  observer.observe(wrapper,{childList:true,subtree:true});
+}
+
+function renderDashboard(){
+  const t = currentFilter.tahun, b = currentFilter.bulan;
+  const opdAktif = DB.opd.filter(o=>o.aktif);
+  let totalSub=0, totalNilai=0, totalFis=0, totalKeu=0, count=0;
+  const rows = [];
+  
+  opdAktif.forEach(o=>{
+    const list = getSubKegList(t,b,o.id);
+    if(list.length===0) return;
+    const k = hitungKomponen(list);
+    totalSub += list.length; totalNilai += k.nilai; totalFis += k.fisik; totalKeu += k.keuangan; count++;
+    rows.push({opd:o, list:list.length, k:k});
+  });
+  
+  const avgNilai = count?totalNilai/count:0;
+  const avgFis = count?totalFis/count:0;
+  const avgKeu = count?totalKeu/count:0;
+  
+  document.getElementById('dashboardCards').innerHTML = `
+    <div class="card"><i class="fas fa-building bg-icon"></i><div class="label">Total OPD</div><div class="value">${opdAktif.length}</div><div class="sub">Perangkat Daerah aktif</div></div>
+    <div class="card green"><i class="fas fa-list bg-icon"></i><div class="label">Total Sub Kegiatan</div><div class="value">${totalSub}</div><div class="sub">Periode ${b} ${t}</div></div>
+    <div class="card purple"><i class="fas fa-chart-line bg-icon"></i><div class="label">Rata-rata Nilai</div><div class="value">${fmtPct(avgNilai)}</div><div class="sub">Kelengkapan Monev</div></div>
+    <div class="card ${getStatus(avgFis).cls}"><i class="fas fa-hard-hat bg-icon"></i><div class="label">Rata-rata Fisik</div><div class="value">${fmtPct(avgFis)}</div><div class="sub">Realisasi fisik</div></div>
+    <div class="card ${getStatus(avgKeu).cls}"><i class="fas fa-money-bill-wave bg-icon"></i><div class="label">Rata-rata Keuangan</div><div class="value">${fmtPct(avgKeu)}</div><div class="sub">Realisasi keuangan</div></div>
+  `;
+  
+  let html = `<thead><tr><th>OPD</th><th class="text-center">Sub Keg</th><th class="text-center">Aktivitas</th><th class="text-center">Fisik</th><th class="text-center">Keuangan</th><th class="text-center">Pendorong</th><th class="text-center">Penghambat</th><th class="text-center">Output</th><th class="text-center">Dokumen</th><th class="text-center">Nilai</th></tr></thead><tbody>`;
+  rows.forEach(r=>{
+    const s = getStatus(r.k.nilai);
+    html += `<tr>
+      <td><a class="opd-link" onclick="bukaOPD('${r.opd.id}')">${r.opd.singkatan}</a><br><small style="color:#64748b">${r.opd.nama}</small></td>
+      <td class="text-center num">${r.list}</td>
+      <td class="text-center num">${fmtPct(r.k.aktivitas)}</td>
+      <td class="text-center num">${fmtPct(r.k.fisik)}</td>
+      <td class="text-center num">${fmtPct(r.k.keuangan)}</td>
+      <td class="text-center num">${fmtPct(r.k.pendorong)}</td>
+      <td class="text-center num">${fmtPct(r.k.penghambat)}</td>
+      <td class="text-center num">${fmtPct(r.k.keluaran)}</td>
+      <td class="text-center num">${fmtPct(r.k.dokumen)}</td>
+      <td class="text-center"><span class="badge badge-${s.cls}">${fmtPct(r.k.nilai)}</span></td>
+    </tr>`;
+  });
+  html += '</tbody>';
+  document.getElementById('tableRekapOPD').innerHTML = html;
+  
+  renderChartOPD(rows);
+  renderChartKomponen(rows);
+  setupScrollIndicator(document.getElementById('wrapRekapOPD'));
+}
+
+function renderChartOPD(rows){
+  const ctx = document.getElementById('chartOPD');
+  if(chartOPD) chartOPD.destroy();
+  if(rows.length===0) return;
+  chartOPD = new Chart(ctx,{type:'bar',data:{labels:rows.map(r=>r.opd.singkatan),datasets:[{label:'Nilai Monev',data:rows.map(r=>r.k.nilai),backgroundColor:'#3b82f6'}]},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,max:100}}}});
+}
+function renderChartKomponen(rows){
+  const ctx = document.getElementById('chartKomponen');
+  if(chartKomponen) chartKomponen.destroy();
+  if(rows.length===0) return;
+  const avg = {aktivitas:0,fisik:0,keuangan:0,pendorong:0,penghambat:0,keluaran:0,dokumen:0};
+  rows.forEach(r=>{for(let k in avg) avg[k]+=r.k[k]});
+  for(let k in avg) avg[k]/=rows.length;
+  chartKomponen = new Chart(ctx,{type:'radar',data:{labels:['Aktivitas','Fisik','Keuangan','Pendorong','Penghambat','Output','Dokumen'],datasets:[{label:'Rata-rata',data:[avg.aktivitas,avg.fisik,avg.keuangan,avg.pendorong,avg.penghambat,avg.keluaran,avg.dokumen],backgroundColor:'rgba(59,130,246,0.2)',borderColor:'#3b82f6'}]},options:{responsive:true,maintainAspectRatio:true,scales:{r:{beginAtZero:true,max:100}}}});
+}
+
+// ===== RENDER MONEV - CHECKLIST LEBAR SERAGAM =====
+function renderMonev(){
+  const t = currentFilter.tahun, b = currentFilter.bulan;
+  let opdId = currentFilter.opd;
+  if(!opdId){
+    const opdAktif = DB.opd.filter(o=>o.aktif);
+    if(opdAktif.length>0){opdId = opdAktif[0].id; currentFilter.opd = opdId; document.getElementById('filterOPD').value = opdId}
+  }
+  const opd = DB.opd.find(o=>o.id===opdId);
+  if(!opd){document.getElementById('tableMonev').innerHTML='<tr><td class="empty">Pilih OPD</td></tr>';return}
+  
+  document.getElementById('monevTitle').innerHTML = `<i class="fas fa-list"></i> ${opd.singkatan} - ${opd.nama} <small style="color:#64748b">(${b} ${t})</small>`;
+  
+  let list = getSubKegList(t,b,opdId);
+  const search = document.getElementById('searchSubKeg').value.toLowerCase();
+  if(search) list = list.filter(s=>s.kode.toLowerCase().includes(search)||s.nama.toLowerCase().includes(search));
+  if(currentFilter.filter==='lengkap') list = list.filter(isLengkap);
+  if(currentFilter.filter==='belum') list = list.filter(s=>!isLengkap(s));
+  
+  const total = getSubKegList(t,b,opdId).length;
+  const lengkap = getSubKegList(t,b,opdId).filter(isLengkap).length;
+  document.getElementById('statusInfo').innerHTML = `<span class="badge badge-green">${lengkap} Lengkap</span> <span class="badge badge-red">${total-lengkap} Belum</span>`;
+  
+  function cekHtml(id, field, val){
+    const cls = val?'v':'x'; const txt = val?'✓':'✕';
+    return `<span class="cek-cell ${cls}" onclick="toggleCek('${id}','${field}')" title="Klik untuk toggle">${txt}</span>`;
+  }
+  
+  // HEADER 2 BARIS - CHECKLIST LEBAR SERAGAM 90px
+  let html = `<thead>
+    <tr>
+      <th rowspan="2" style="vertical-align:middle;text-align:center;min-width:40px">No</th>
+      <th rowspan="2" style="vertical-align:middle;min-width:140px">KODE</th>
+      <th rowspan="2" style="vertical-align:middle;min-width:280px">Sub Kegiatan</th>
+      <th rowspan="2" style="vertical-align:middle;text-align:right;min-width:120px">Pagu</th>
+      <th colspan="7" class="group-header" style="width:630px">CHECK LIST</th>
+      <th rowspan="2" style="vertical-align:middle;min-width:240px">KETERANGAN</th>
+      <th rowspan="2" style="vertical-align:middle;text-align:center;min-width:100px">Aksi</th>
+    </tr>
+    <tr>
+      <th class="sub-header cek-col">Uraian Aktivitas</th>
+      <th class="sub-header cek-col">Realisasi Fisik</th>
+      <th class="sub-header cek-col">Realisasi Keuangan</th>
+      <th class="sub-header cek-col">Faktor Pendorong</th>
+      <th class="sub-header cek-col">Faktor Penghambat</th>
+      <th class="sub-header cek-col">Keluaran Sub Kegiatan</th>
+      <th class="sub-header cek-col">Upload Dokumen</th>
+    </tr>
+  </thead><tbody>`;
+  
+  if(list.length===0){
+    html += `<tr><td colspan="13" class="empty"><i class="fas fa-inbox"></i><div>Tidak ada data</div></td></tr>`;
+  } else {
+    list.forEach((s,i)=>{
+      html += `<tr>
+        <td>${i+1}</td>
+        <td>${s.kode}</td>
+        <td style="max-width:320px">${s.nama}</td>
+        <td class="text-right num">${fmtRp(s.pagu)}</td>
+        <td class="cek-col">${cekHtml(s.id,'aktivitas',s.cekAktivitas)}</td>
+        <td class="cek-col">${cekHtml(s.id,'fisik',s.cekFisik)}</td>
+        <td class="cek-col">${cekHtml(s.id,'keuangan',s.cekKeuangan)}</td>
+        <td class="cek-col">${cekHtml(s.id,'pendorong',s.cekPendorong)}</td>
+        <td class="cek-col">${cekHtml(s.id,'penghambat',s.cekPenghambat)}</td>
+        <td class="cek-col">${cekHtml(s.id,'keluaran',s.cekKeluaran)}</td>
+        <td class="cek-col">${cekHtml(s.id,'dokumen',s.cekDokumen)}</td>
+        <td><div class="ket-cell" onclick="editKeterangan('${s.id}',this)"></div></td>
+        <td class="text-center" style="white-space:nowrap">
+          <button class="btn btn-primary btn-icon" onclick="editSubKeg('${s.id}')" title="Edit Sub Kegiatan"><i class="fas fa-edit"></i></button>
+          <button class="btn btn-success btn-icon" onclick="editMonev('${s.id}')" title="Input Data Monev"><i class="fas fa-chart-bar"></i></button>
+          <button class="btn btn-danger btn-icon" onclick="hapusSubKeg('${s.id}')" title="Hapus"><i class="fas fa-trash"></i></button>
+        </td>
+      </tr>`;
+    });
+  }
+  html += '</tbody>';
+  document.getElementById('tableMonev').innerHTML = html;
+  
+  list.forEach(s=>{
+    const row = document.querySelector(`[onclick="editKeterangan('${s.id}',this)"]`);
+    if(row) renderKeteranganCell(row, s);
+  });
+  
+  const wrapper = document.getElementById('wrapMonev');
+  setupScrollIndicator(wrapper);
+  
+  // Scroll hint
+  const hint = document.getElementById('scrollHint');
+  const checkHint = ()=>{
+    const hasScroll = wrapper.scrollWidth > wrapper.clientWidth;
+    const scrolled = wrapper.scrollLeft > 10;
+    hint.classList.toggle('show', hasScroll && !scrolled);
+  };
+  wrapper.addEventListener('scroll', checkHint);
+  setTimeout(checkHint, 100);
+}
+
+function setFilter(btn){
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  currentFilter.filter = btn.dataset.filter;
+  renderMonev();
+}
+
+function bukaOPD(id){
+  currentFilter.opd = id;
+  document.getElementById('filterOPD').value = id;
+  goToPage('monev');
+}
+
+function renderRekapKab(){
+  const t = currentFilter.tahun, b = currentFilter.bulan;
+  const opdAktif = DB.opd.filter(o=>o.aktif);
+  let html = `<thead><tr><th>OPD</th><th class="text-center">Aktivitas</th><th class="text-center">Fisik</th><th class="text-center">Keuangan</th><th class="text-center">Pendorong</th><th class="text-center">Penghambat</th><th class="text-center">Output</th><th class="text-center">Dokumen</th><th class="text-center">Nilai</th></tr></thead><tbody>`;
+  
+  let sum = {aktivitas:0,fisik:0,keuangan:0,pendorong:0,penghambat:0,keluaran:0,dokumen:0,nilai:0};
+  let count=0;
+  
+  opdAktif.forEach(o=>{
+    const list = getSubKegList(t,b,o.id);
+    if(list.length===0) return;
+    const k = hitungKomponen(list);
+    for(let x in sum) sum[x]+=k[x];
+    count++;
+    const s = getStatus(k.nilai);
+    html += `<tr>
+      <td><strong>${o.singkatan}</strong><br><small style="color:#64748b">${o.nama}</small></td>
+      <td class="text-center num">${fmtPct(k.aktivitas)}</td>
+      <td class="text-center num">${fmtPct(k.fisik)}</td>
+      <td class="text-center num">${fmtPct(k.keuangan)}</td>
+      <td class="text-center num">${fmtPct(k.pendorong)}</td>
+      <td class="text-center num">${fmtPct(k.penghambat)}</td>
+      <td class="text-center num">${fmtPct(k.keluaran)}</td>
+      <td class="text-center num">${fmtPct(k.dokumen)}</td>
+      <td class="text-center"><span class="badge badge-${s.cls}">${fmtPct(k.nilai)}</span></td>
+    </tr>`;
+  });
+  
+  if(count>0){
+    for(let x in sum) sum[x]/=count;
+    html += `<tr style="background:#f1f5f9;font-weight:700">
+      <td>RATA-RATA</td>
+      <td class="text-center num">${fmtPct(sum.aktivitas)}</td>
+      <td class="text-center num">${fmtPct(sum.fisik)}</td>
+      <td class="text-center num">${fmtPct(sum.keuangan)}</td>
+      <td class="text-center num">${fmtPct(sum.pendorong)}</td>
+      <td class="text-center num">${fmtPct(sum.penghambat)}</td>
+      <td class="text-center num">${fmtPct(sum.keluaran)}</td>
+      <td class="text-center num">${fmtPct(sum.dokumen)}</td>
+      <td class="text-center"><span class="badge badge-blue">${fmtPct(sum.nilai)}</span></td>
+    </tr>`;
+  }
+  html += '</tbody>';
+  document.getElementById('tableRekapKab').innerHTML = html;
+}
+
+function renderAnalisis(){
+  const opdId = document.getElementById('analOPD').value;
+  const b1 = document.getElementById('analBulan1').value;
+  const b2 = document.getElementById('analBulan2').value;
+  const t = currentFilter.tahun;
+  const opd = DB.opd.find(o=>o.id===opdId);
+  if(!opd){document.getElementById('hasilAnalisis').innerHTML='<div class="alert alert-warning">Pilih OPD</div>';return}
+  
+  const l1 = getSubKegList(t,b1,opdId);
+  const l2 = getSubKegList(t,b2,opdId);
+  const k1 = hitungKomponen(l1);
+  const k2 = hitungKomponen(l2);
+  
+  function arrow(d){return d>0?'<span style="color:#10b981">↑</span>':d<0?'<span style="color:#ef4444">↓</span>':'<span style="color:#64748b">→</span>'}
+  
+  let html = `<div class="panel"><div class="panel-header"><h3>Perbandingan ${b1} vs ${b2} - ${opd.singkatan}</h3></div><div class="panel-body">
+  <table><thead><tr><th>Indikator</th><th class="text-center">${b1}</th><th class="text-center">${b2}</th><th class="text-center">Perubahan</th></tr></thead><tbody>`;
+  const keys = [['aktivitas','Aktivitas'],['fisik','Realisasi Fisik'],['keuangan','Realisasi Keuangan'],['pendorong','Pendorong'],['penghambat','Penghambat'],['keluaran','Output'],['dokumen','Dokumen'],['nilai','Nilai Akhir']];
+  keys.forEach(([k,label])=>{
+    const d = k2[k]-k1[k];
+    html += `<tr><td>${label}</td><td class="text-center num">${fmtPct(k1[k])}</td><td class="text-center num">${fmtPct(k2[k])}</td><td class="text-center">${arrow(d)} ${d>=0?'+':''}${fmtPct(d)}</td></tr>`;
+  });
+  html += '</tbody></table></div></div>';
+  document.getElementById('hasilAnalisis').innerHTML = html;
+}
+
+function initAnalisis(){
+  const opdAktif = DB.opd.filter(o=>o.aktif);
+  document.getElementById('analOPD').innerHTML = opdAktif.map(o=>`<option value="${o.id}">${o.singkatan}</option>`).join('');
+  document.getElementById('analBulan1').innerHTML = BULAN.map(b=>`<option value="${b}">${b}</option>`).join('');
+  document.getElementById('analBulan2').innerHTML = BULAN.map(b=>`<option value="${b}">${b}</option>`).join('');
+  document.getElementById('analBulan1').value = 'Juli';
+  document.getElementById('analBulan2').value = 'Agustus';
+}
+
+function renderMasterOPD(){
+  let html = '';
+  DB.opd.forEach((o)=>{
+    const total = Object.values(DB.periode).flatMap(p=>Object.values(p)).reduce((a,b)=>a+(b[o.id]?b[o.id].length:0),0);
+    const periodeCount = Object.values(DB.periode).flatMap(p=>Object.values(p)).filter(b=>b[o.id]&&b[o.id].length>0).length;
+    html += `<div class="opd-card">
+      <div class="info">
+        <h5><strong>${o.singkatan}</strong> — ${o.nama}</h5>
+        <small>
+          <span class="badge badge-${o.aktif?'green':'red'}">${o.aktif?'Aktif':'Nonaktif'}</span>
+          &nbsp;•&nbsp; ${total} sub kegiatan di ${periodeCount} periode
+        </small>
+      </div>
+      <div>
+        <button class="btn btn-primary btn-sm" onclick="editOPD('${o.id}')"><i class="fas fa-edit"></i> Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="hapusOPD('${o.id}')"><i class="fas fa-trash"></i> Hapus</button>
+      </div>
+    </div>`;
+  });
+  document.getElementById('listOPD').innerHTML = html || '<div class="empty">Belum ada OPD</div>';
+}
+
+function tambahOPD(){
+  document.getElementById('modalOPDTitle').textContent = 'Tambah OPD';
+  document.getElementById('opdId').value='';
+  document.getElementById('opdNama').value='';
+  document.getElementById('opdSingkatan').value='';
+  document.getElementById('opdStatus').value='1';
+  document.getElementById('modalOPD').classList.add('show');
+}
+function editOPD(id){
+  const o = DB.opd.find(x=>x.id===id);
+  document.getElementById('modalOPDTitle').textContent = 'Edit OPD';
+  document.getElementById('opdId').value=o.id;
+  document.getElementById('opdNama').value=o.nama;
+  document.getElementById('opdSingkatan').value=o.singkatan;
+  document.getElementById('opdStatus').value=o.aktif?'1':'0';
+  document.getElementById('modalOPD').classList.add('show');
+}
+function simpanOPD(){
+  const id = document.getElementById('opdId').value;
+  const nama = document.getElementById('opdNama').value.trim();
+  const singkatan = document.getElementById('opdSingkatan').value.trim().toUpperCase();
+  const aktif = document.getElementById('opdStatus').value==='1';
+  if(!nama||!singkatan){alert('Nama dan singkatan wajib diisi');return}
+  if(!id && DB.opd.find(o=>o.id===singkatan)){
+    if(!confirm(`OPD dengan singkatan "${singkatan}" sudah ada. Timpa data yang ada?`)) return;
+    const existing = DB.opd.find(o=>o.id===singkatan);
+    existing.nama=nama;existing.singkatan=singkatan;existing.aktif=aktif;
+  } else if(id){
+    const o = DB.opd.find(x=>x.id===id);
+    if(o.id !== singkatan){
+      if(DB.opd.find(x=>x.id===singkatan)){alert('Singkatan sudah digunakan OPD lain');return}
+      Object.values(DB.periode).forEach(p=>Object.values(p).forEach(b=>{
+        if(b[o.id]){b[singkatan]=b[o.id]; delete b[o.id];}
+      }));
+      o.id = singkatan;
+    }
+    o.nama=nama;o.singkatan=singkatan;o.aktif=aktif;
+  } else {
+    DB.opd.push({id:singkatan,nama,singkatan,aktif});
+  }
+  saveDB();closeModal('modalOPD');initFilter();renderMasterOPD();
+  alert('OPD berhasil disimpan.');
+}
+function hapusOPD(id){
+  const o = DB.opd.find(x=>x.id===id);
+  const total = Object.values(DB.periode).flatMap(p=>Object.values(p)).reduce((a,b)=>a+(b[id]?b[id].length:0),0);
+  if(!confirm(`Hapus OPD "${o.nama}"?\n\n⚠ ${total} sub kegiatan di seluruh periode akan ikut terhapus.`)) return;
+  DB.opd = DB.opd.filter(o=>o.id!==id);
+  Object.values(DB.periode).forEach(p=>Object.values(p).forEach(b=>{delete b[id]}));
+  saveDB();initFilter();renderMasterOPD();renderAll();
+}
+
+function renderMasterPeriode(){
+  const tahunList = Object.keys(DB.periode).sort();
+  let html = '';
+  tahunList.forEach(t=>{
+    html += `<div class="tahun-card">
+      <div class="tahun-header">
+        <h4><i class="fas fa-calendar-alt" style="color:#3b82f6"></i> Tahun ${t}</h4>
+        <div><button class="btn btn-danger btn-sm" onclick="hapusTahun('${t}')"><i class="fas fa-trash"></i> Hapus Tahun</button></div>
+      </div>
+      <div class="bulan-grid">`;
+    BULAN.forEach(b=>{
+      const data = DB.periode[t][b];
+      const ada = data && Object.keys(data).length>0;
+      const totalSub = ada?Object.values(data).reduce((a,b)=>a+b.length,0):0;
+      const opdCount = ada?Object.keys(data).filter(k=>data[k]&&data[k].length>0).length:0;
+      html += `<div class="bulan-item ${ada?'has-data':''}" onclick="bukaPeriode('${t}','${b}')">
+        <div class="bulan-name">${b}</div>
+        <div class="bulan-info">${ada?opdCount+' OPD • '+totalSub+' sub keg':'Belum ada data'}</div>
+      </div>`;
+    });
+    html += '</div></div>';
+  });
+  document.getElementById('listPeriode').innerHTML = html || '<div class="empty">Belum ada periode.</div>';
+}
+
+function bukaPeriode(tahun, bulan){
+  currentFilter.tahun = parseInt(tahun);
+  currentFilter.bulan = bulan;
+  document.getElementById('filterTahun').value = tahun;
+  document.getElementById('filterBulan').value = bulan;
+  goToPage('monev');
+}
+
+function hapusTahun(tahun){
+  const totalSub = Object.values(DB.periode[tahun]||{}).flatMap(b=>Object.values(b)).reduce((a,b)=>a+b.length,0);
+  if(!confirm(`Hapus tahun ${tahun}?\n\n⚠ ${totalSub} sub kegiatan akan ikut terhapus.`)) return;
+  delete DB.periode[tahun];
+  saveDB();
+  const tahunList = Object.keys(DB.periode).sort();
+  if(tahunList.length===0){initDataAwal();saveDB();initFilter();renderAll();alert('Tahun dihapus. Data awal dikembalikan.');}
+  else {if(!tahunList.includes(String(currentFilter.tahun)))currentFilter.tahun=parseInt(tahunList[0]);initFilter();renderAll();renderMasterPeriode();alert('Tahun '+tahun+' dihapus.');}
+}
+
+function bukaModalTambahTahun(){
+  const tahunList = Object.keys(DB.periode).sort();
+  const tahunMax = tahunList.length>0?Math.max(...tahunList.map(Number)):2026;
+  document.getElementById('tahunBaru').value = tahunMax + 1;
+  document.getElementById('copyDariTahunLama').checked = false;
+  document.getElementById('groupTahunSumber').style.display = 'none';
+  document.getElementById('groupBulanSumber').style.display = 'none';
+  document.getElementById('tahunSumber').innerHTML = tahunList.map(t=>`<option value="${t}">${t}</option>`).join('');
+  if(tahunList.length>0) document.getElementById('tahunSumber').value = tahunList[tahunList.length-1];
+  document.getElementById('modalTahun').classList.add('show');
+}
+
+function toggleCopyDariTahun(){
+  const checked = document.getElementById('copyDariTahunLama').checked;
+  document.getElementById('groupTahunSumber').style.display = checked?'block':'none';
+  document.getElementById('groupBulanSumber').style.display = checked?'block':'none';
+}
+
+function simpanTahunBaru(){
+  const tahunBaru = parseInt(document.getElementById('tahunBaru').value);
+  if(!tahunBaru || tahunBaru<2020 || tahunBaru>2100){alert('Tahun tidak valid (2020-2100)');return}
+  if(DB.periode[String(tahunBaru)]){if(!confirm(`Tahun ${tahunBaru} sudah ada. Timpa?`)) return;}
+  
+  const copyDariTahunLama = document.getElementById('copyDariTahunLama').checked;
+  
+  if(copyDariTahunLama){
+    const tahunSumber = document.getElementById('tahunSumber').value;
+    const bulanSumber = document.getElementById('bulanSumber').value;
+    DB.periode[String(tahunBaru)] = {};
+    
+    if(bulanSumber === 'semua'){
+      const srcData = DB.periode[tahunSumber];
+      if(srcData){
+        Object.keys(srcData).forEach(bulan=>{
+          DB.periode[String(tahunBaru)][bulan] = {};
+          Object.keys(srcData[bulan]).forEach(opd=>{
+            DB.periode[String(tahunBaru)][bulan][opd] = srcData[bulan][opd].map(s=>{
+              const ns = JSON.parse(JSON.stringify(s));
+              ns.id = ns.kode+'_'+Date.now()+'_'+Math.random().toString(36).substr(2,5);
+              ns.uraianAktivitas='';ns.realisasiFisik=0;ns.realisasiKeuangan=0;
+              ns.faktorPendorong='';ns.faktorPenghambat='';ns.keluaran='';ns.dokumen=[];
+              ns.cekAktivitas=false;ns.cekFisik=false;ns.cekKeuangan=false;
+              ns.cekPendorong=false;ns.cekPenghambat=false;ns.cekKeluaran=false;ns.cekDokumen=false;
+              ns.keterangan='';
+              ns.manualOverride = {aktivitas:false,fisik:false,keuangan:false,pendorong:false,penghambat:false,keluaran:false,dokumen:false};
+              return ns;
+            });
+          });
+        });
+      }
+    } else {
+      const srcData = DB.periode[tahunSumber] && DB.periode[tahunSumber][bulanSumber];
+      if(srcData){
+        DB.periode[String(tahunBaru)][bulanSumber] = {};
+        Object.keys(srcData).forEach(opd=>{
+          DB.periode[String(tahunBaru)][bulanSumber][opd] = srcData[opd].map(s=>{
+            const ns = JSON.parse(JSON.stringify(s));
+            ns.id = ns.kode+'_'+Date.now()+'_'+Math.random().toString(36).substr(2,5);
+            ns.uraianAktivitas='';ns.realisasiFisik=0;ns.realisasiKeuangan=0;
+            ns.faktorPendorong='';ns.faktorPenghambat='';ns.keluaran='';ns.dokumen=[];
+            ns.cekAktivitas=false;ns.cekFisik=false;ns.cekKeuangan=false;
+            ns.cekPendorong=false;ns.cekPenghambat=false;ns.cekKeluaran=false;ns.cekDokumen=false;
+            ns.keterangan='';
+            ns.manualOverride = {aktivitas:false,fisik:false,keuangan:false,pendorong:false,penghambat:false,keluaran:false,dokumen:false};
+            return ns;
+          });
+        });
+      }
+    }
+  } else {
+    DB.periode[String(tahunBaru)] = {};
+  }
+  
+  saveDB();
+  currentFilter.tahun = tahunBaru;
+  initFilter();renderAll();renderMasterPeriode();
+  closeModal('modalTahun');
+  alert(`✅ Tahun ${tahunBaru} berhasil dibuat!`);
+}
+
+function tambahSubKegiatan(){
+  document.getElementById('modalSubKegTitle').textContent = 'Tambah Sub Kegiatan';
+  document.getElementById('skId').value='';
+  document.getElementById('skKode').value='';
+  document.getElementById('skNama').value='';
+  document.getElementById('skPagu').value=0;
+  document.getElementById('modalSubKeg').classList.add('show');
+}
+function editSubKeg(id){
+  const t = currentFilter.tahun, b = currentFilter.bulan, opd = currentFilter.opd;
+  const s = getSubKegList(t,b,opd).find(x=>x.id===id);
+  if(!s) return;
+  document.getElementById('modalSubKegTitle').textContent = 'Edit Sub Kegiatan';
+  document.getElementById('skId').value=s.id;
+  document.getElementById('skKode').value=s.kode;
+  document.getElementById('skNama').value=s.nama;
+  document.getElementById('skPagu').value=s.pagu;
+  document.getElementById('modalSubKeg').classList.add('show');
+}
+function simpanSubKegiatan(){
+  const id = document.getElementById('skId').value;
+  const kode = document.getElementById('skKode').value.trim();
+  const nama = document.getElementById('skNama').value.trim();
+  const pagu = parseFloat(document.getElementById('skPagu').value)||0;
+  if(!kode||!nama){alert('Kode dan nama wajib diisi');return}
+  if(pagu<0){alert('Pagu tidak boleh negatif');return}
+  
+  const t = currentFilter.tahun, b = currentFilter.bulan, opd = currentFilter.opd;
+  ensurePeriode(t,b,opd);
+  const list = DB.periode[t][b][opd];
+  
+  if(id){
+    const s = list.find(x=>x.id===id);
+    s.kode=kode;s.nama=nama;s.pagu=pagu;
+  } else {
+    list.push({
+      id: kode+'_'+Date.now(), kode,nama,pagu,
+      uraianAktivitas:'',realisasiFisik:0,realisasiKeuangan:0,
+      faktorPendorong:'',faktorPenghambat:'',keluaran:'',dokumen:[],
+      cekAktivitas:false,cekFisik:false,cekKeuangan:false,
+      cekPendorong:false,cekPenghambat:false,cekKeluaran:false,cekDokumen:false,
+      keterangan:'',
+      manualOverride:{aktivitas:false,fisik:false,keuangan:false,pendorong:false,penghambat:false,keluaran:false,dokumen:false}
+    });
+  }
+  saveDB();closeModal('modalSubKeg');renderMonev();
+}
+function hapusSubKeg(id){
+  if(!confirm('Hapus sub kegiatan ini?')) return;
+  const t = currentFilter.tahun, b = currentFilter.bulan, opd = currentFilter.opd;
+  DB.periode[t][b][opd] = DB.periode[t][b][opd].filter(s=>s.id!==id);
+  saveDB();renderMonev();
+}
+
+function editMonev(id){
+  const t = currentFilter.tahun, b = currentFilter.bulan, opd = currentFilter.opd;
+  const s = getSubKegList(t,b,opd).find(x=>x.id===id);
+  if(!s) return;
+  document.getElementById('modalMonevTitle').textContent = 'Data Monev - '+s.kode;
+  document.getElementById('mId').value=s.id;
+  document.getElementById('mAktivitas').value=s.uraianAktivitas||'';
+  document.getElementById('mFisik').value=s.realisasiFisik||0;
+  document.getElementById('mKeuangan').value=s.realisasiKeuangan||0;
+  document.getElementById('mPendorong').value=s.faktorPendorong||'';
+  document.getElementById('mPenghambat').value=s.faktorPenghambat||'';
+  document.getElementById('mKeluaran').value=s.keluaran||'';
+  
+  let dokHtml = '<small style="color:#64748b">Dokumen saat ini:</small><ul style="margin-top:5px">';
+  if(s.dokumen && s.dokumen.length>0){
+    s.dokumen.forEach((d,i)=>{dokHtml += `<li>${d} <button class="btn btn-danger btn-sm" onclick="hapusDokumen(${i})" style="padding:2px 6px"><i class="fas fa-times"></i></button></li>`});
+  } else dokHtml += '<li style="color:#94a3b8">Belum ada dokumen</li>';
+  dokHtml += '</ul>';
+  document.getElementById('listDokumen').innerHTML = dokHtml;
+  
+  document.getElementById('modalMonev').classList.add('show');
+}
+function hapusDokumen(idx){
+  const id = document.getElementById('mId').value;
+  const t = currentFilter.tahun, b = currentFilter.bulan, opd = currentFilter.opd;
+  const s = getSubKegList(t,b,opd).find(x=>x.id===id);
+  s.dokumen.splice(idx,1);
+  saveDB();editMonev(id);
+}
+function simpanMonev(){
+  const id = document.getElementById('mId').value;
+  const t = currentFilter.tahun, b = currentFilter.bulan, opd = currentFilter.opd;
+  const s = getSubKegList(t,b,opd).find(x=>x.id===id);
+  if(!s) return;
+  
+  const fisik = parseFloat(document.getElementById('mFisik').value)||0;
+  if(fisik<0||fisik>100){alert('Realisasi fisik harus 0-100%');return}
+  
+  const aktivitas = document.getElementById('mAktivitas').value;
+  const keuangan = parseFloat(document.getElementById('mKeuangan').value)||0;
+  const pendorong = document.getElementById('mPendorong').value;
+  const penghambat = document.getElementById('mPenghambat').value;
+  const keluaran = document.getElementById('mKeluaran').value;
+  
+  s.uraianAktivitas = aktivitas;
+  s.realisasiFisik = fisik;
+  s.realisasiKeuangan = keuangan;
+  s.faktorPendorong = pendorong;
+  s.faktorPenghambat = penghambat;
+  s.keluaran = keluaran;
+  
+  const files = document.getElementById('mDokumen').files;
+  if(!s.dokumen) s.dokumen = [];
+  for(let i=0;i<files.length;i++) s.dokumen.push(files[i].name);
+  
+  if(!s.manualOverride.aktivitas) s.cekAktivitas = !!(aktivitas && aktivitas.trim());
+  if(!s.manualOverride.fisik) s.cekFisik = fisik > 0;
+  if(!s.manualOverride.keuangan) s.cekKeuangan = keuangan > 0;
+  if(!s.manualOverride.pendorong) s.cekPendorong = !!(pendorong && pendorong.trim());
+  if(!s.manualOverride.penghambat) s.cekPenghambat = !!(penghambat && penghambat.trim());
+  if(!s.manualOverride.keluaran) s.cekKeluaran = !!(keluaran && keluaran.trim());
+  if(!s.manualOverride.dokumen) s.cekDokumen = s.dokumen.length > 0;
+  
+  saveDB();closeModal('modalMonev');renderMonev();
+}
+
+function closeModal(id){document.getElementById(id).classList.remove('show')}
+
+function bukaModalCopy(){
+  const t = currentFilter.tahun, b = currentFilter.bulan, opd = currentFilter.opd;
+  if(!opd){alert('Pilih OPD terlebih dahulu');return}
+  
+  const tahunList = Object.keys(DB.periode).sort();
+  document.getElementById('copyTahun').innerHTML = tahunList.map(x=>`<option value="${x}">${x}</option>`).join('') || '<option>Tidak ada data</option>';
+  document.getElementById('copyTahun').value = t;
+  
+  document.getElementById('copyBulan').innerHTML = BULAN.map(x=>`<option value="${x}">${x}</option>`).join('');
+  const bIdx = BULAN.indexOf(b);
+  const prevBulan = bIdx>0?BULAN[bIdx-1]:BULAN[0];
+  document.getElementById('copyBulan').value = prevBulan;
+  
+  const opdAktif = DB.opd.filter(o=>o.aktif);
+  document.getElementById('copyOPD').innerHTML = opdAktif.map(o=>`<option value="${o.id}">${o.singkatan} - ${o.nama}</option>`).join('');
+  document.getElementById('copyOPD').value = opd;
+  
+  document.getElementById('copyPreview').innerHTML = '<div class="alert alert-info"><i class="fas fa-info-circle"></i> Klik <strong>Preview</strong>.</div>';
+  copyCache = [];
+  document.getElementById('modalCopy').classList.add('show');
+  
+  ['copyTahun','copyBulan','copyOPD'].forEach(id=>{
+    document.getElementById(id).onchange = ()=>{
+      document.getElementById('copyPreview').innerHTML = '<div class="alert alert-info"><i class="fas fa-info-circle"></i> Klik <strong>Preview</strong>.</div>';
+      copyCache = [];
+    };
+  });
+}
+
+function previewCopy(){
+  const srcT = document.getElementById('copyTahun').value;
+  const srcB = document.getElementById('copyBulan').value;
+  const srcO = document.getElementById('copyOPD').value;
+  const dstT = currentFilter.tahun;
+  const dstB = currentFilter.bulan;
+  const dstO = currentFilter.opd;
+  
+  const srcList = getSubKegList(srcT,srcB,srcO);
+  if(srcList.length===0){
+    document.getElementById('copyPreview').innerHTML = '<div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> Tidak ada sub kegiatan di sumber.</div>';
+    copyCache = [];
+    return;
+  }
+  
+  const dstList = getSubKegList(dstT,dstB,dstO);
+  const dstKodes = new Set(dstList.map(s=>s.kode));
+  const mode = document.getElementById('copyMode').value;
+  
+  let toCopy = mode==='tambah'?srcList.filter(s=>!dstKodes.has(s.kode)):srcList;
+  copyCache = toCopy;
+  
+  let html = `<div class="alert alert-success"><i class="fas fa-check-circle"></i> Ditemukan <strong>${toCopy.length}</strong> sub kegiatan.</div>`;
+  html += `<div class="copy-preview"><table><thead><tr><th><input type="checkbox" ${toCopy.length>0?'checked':''} onchange="toggleAllCopy(this.checked)"></th><th>Kode</th><th>Nama</th><th class="text-right">Pagu</th></tr></thead><tbody>`;
+  
+  toCopy.forEach((s,i)=>{
+    html += `<tr>
+      <td><input type="checkbox" class="copy-item" data-idx="${i}" checked></td>
+      <td style="font-family:monospace;font-size:11px">${s.kode}</td>
+      <td>${s.nama}</td>
+      <td class="text-right num">${fmtRp(s.pagu)}</td>
+    </tr>`;
+  });
+  
+  if(toCopy.length===0) html += `<tr><td colspan="4" class="empty">Tidak ada sub kegiatan</td></tr>`;
+  html += '</tbody></table></div>';
+  document.getElementById('copyPreview').innerHTML = html;
+}
+
+function toggleAllCopy(checked){
+  if(checked===undefined) checked = document.getElementById('copySelectAll').checked;
+  document.querySelectorAll('.copy-item').forEach(cb=>cb.checked=checked);
+  document.getElementById('copySelectAll').checked = checked;
+}
+
+function execCopy(){
+  if(copyCache.length===0){previewCopy();if(copyCache.length===0){alert('Tidak ada sub kegiatan.');return;}}
+  
+  const selectedIdx = [];
+  document.querySelectorAll('.copy-item:checked').forEach(cb=>selectedIdx.push(parseInt(cb.dataset.idx)));
+  const toCopy = selectedIdx.map(i=>copyCache[i]).filter(Boolean);
+  
+  if(toCopy.length===0){alert('Pilih minimal 1 sub kegiatan.');return}
+  
+  const dstT = currentFilter.tahun, dstB = currentFilter.bulan, dstO = currentFilter.opd;
+  const mode = document.getElementById('copyMode').value;
+  const includeData = document.getElementById('copyDataMonev').checked;
+  
+  ensurePeriode(dstT,dstB,dstO);
+  const dstList = DB.periode[dstT][dstB][dstO];
+  
+  let added=0, updated=0;
+  
+  toCopy.forEach(src=>{
+    const existing = dstList.find(s=>s.kode===src.kode);
+    const newSub = JSON.parse(JSON.stringify(src));
+    newSub.id = src.kode+'_'+Date.now()+'_'+Math.random().toString(36).substr(2,5);
+    
+    if(!includeData){
+      newSub.uraianAktivitas='';newSub.realisasiFisik=0;newSub.realisasiKeuangan=0;
+      newSub.faktorPendorong='';newSub.faktorPenghambat='';newSub.keluaran='';newSub.dokumen=[];
+      newSub.cekAktivitas=false;newSub.cekFisik=false;newSub.cekKeuangan=false;
+      newSub.cekPendorong=false;newSub.cekPenghambat=false;newSub.cekKeluaran=false;newSub.cekDokumen=false;
+      newSub.keterangan='';
+      newSub.manualOverride = {aktivitas:false,fisik:false,keuangan:false,pendorong:false,penghambat:false,keluaran:false,dokumen:false};
+    }
+    
+    if(existing){
+      if(mode==='timpa'){
+        const idx = dstList.findIndex(s=>s.kode===src.kode);
+        dstList[idx] = newSub;
+        updated++;
+      }
+    } else {
+      dstList.push(newSub);
+      added++;
+    }
+  });
+  
+  saveDB();
+  closeModal('modalCopy');
+  renderAll();
+  alert(`✅ Copy berhasil!\n• ${added} baru\n• ${updated} ditimpa`);
+}
+
+function exportExcel(type){
+  const wb = XLSX.utils.book_new();
+  const t = currentFilter.tahun, b = currentFilter.bulan;
+  
+  if(type==='opd' || type==='all'){
+    DB.opd.filter(o=>o.aktif).forEach(o=>{
+      const list = getSubKegList(t,b,o.id);
+      if(list.length===0) return;
+      const data = list.map((s,i)=>({
+        'No':i+1,'Kode':s.kode,'Sub Kegiatan':s.nama,'Pagu':s.pagu,
+        'Uraian Aktivitas':s.cekAktivitas?'V':'X',
+        'Realisasi Fisik':s.cekFisik?'V':'X',
+        'Realisasi Keuangan':s.cekKeuangan?'V':'X',
+        'Faktor Pendorong':s.cekPendorong?'V':'X',
+        'Faktor Penghambat':s.cekPenghambat?'V':'X',
+        'Keluaran Sub Kegiatan':s.cekKeluaran?'V':'X',
+        'Upload Dokumen':s.cekDokumen?'V':'X',
+        'Keterangan':s.keterangan||'',
+        'Uraian Aktivitas (Isi)':s.uraianAktivitas,'Realisasi Fisik (%)':s.realisasiFisik,
+        'Realisasi Keuangan':s.realisasiKeuangan,'Faktor Pendorong (Isi)':s.faktorPendorong,
+        'Faktor Penghambat (Isi)':s.faktorPenghambat,'Keluaran Sub Kegiatan (Isi)':s.keluaran,
+        'File Dokumen':(s.dokumen||[]).join(', ')
+      }));
+      XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(data),o.singkatan);
+    });
+  }
+  
+  if(type==='rekap' || type==='all'){
+    const rows = [];
+    DB.opd.filter(o=>o.aktif).forEach(o=>{
+      const list = getSubKegList(t,b,o.id);
+      if(list.length===0) return;
+      const k = hitungKomponen(list);
+      rows.push({OPD:o.singkatan,Nama:o.nama,Aktivitas:k.aktivitas.toFixed(2),Fisik:k.fisik.toFixed(2),Keuangan:k.keuangan.toFixed(2),Pendorong:k.pendorong.toFixed(2),Penghambat:k.penghambat.toFixed(2),Output:k.keluaran.toFixed(2),Dokumen:k.dokumen.toFixed(2),Nilai:k.nilai.toFixed(2)});
+    });
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),'Rekap');
+  }
+  
+  XLSX.writeFile(wb,`Monev_${b}_${t}.xlsx`);
+}
+
+function importExcel(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    try{
+      const data = new Uint8Array(ev.target.result);
+      const wb = XLSX.read(data,{type:'array'});
+      let count=0;
+      wb.SheetNames.forEach(name=>{
+        const opd = DB.opd.find(o=>o.singkatan===name.toUpperCase()||o.nama.includes(name));
+        if(!opd) return;
+        const ws = wb.Sheets[name];
+        const json = XLSX.utils.sheet_to_json(ws);
+        ensurePeriode(currentFilter.tahun,currentFilter.bulan,opd.id);
+        const list = DB.periode[currentFilter.tahun][currentFilter.bulan][opd.id];
+        json.forEach(r=>{
+          const kode = r['KODE']||r['Kode']||'';
+          const nama = r['Sub Kegiatan']||r['SubKegiatan']||r['Nama']||'';
+          if(!kode||!nama) return;
+          let s = list.find(x=>x.kode===kode);
+          if(!s){
+            s = {id:kode+'_'+Date.now()+Math.random(),kode,nama,pagu:r['Pagu']||0,uraianAktivitas:'',realisasiFisik:0,realisasiKeuangan:0,faktorPendorong:'',faktorPenghambat:'',keluaran:'',dokumen:[],
+              cekAktivitas:false,cekFisik:false,cekKeuangan:false,cekPendorong:false,cekPenghambat:false,cekKeluaran:false,cekDokumen:false,
+              keterangan:'',
+              manualOverride:{aktivitas:false,fisik:false,keuangan:false,pendorong:false,penghambat:false,keluaran:false,dokumen:false}};
+            list.push(s);
+          }
+          if(r['Uraian Aktivitas (Isi)']) s.uraianAktivitas = r['Uraian Aktivitas (Isi)'];
+          if(r['Realisasi Fisik (%)']!==undefined) s.realisasiFisik = parseFloat(r['Realisasi Fisik (%)'])||0;
+          if(r['Realisasi Keuangan']!==undefined) s.realisasiKeuangan = parseFloat(r['Realisasi Keuangan'])||0;
+          if(r['Faktor Pendorong (Isi)']) s.faktorPendorong = r['Faktor Pendorong (Isi)'];
+          if(r['Faktor Penghambat (Isi)']) s.faktorPenghambat = r['Faktor Penghambat (Isi)'];
+          if(r['Keluaran Sub Kegiatan (Isi)']) s.keluaran = r['Keluaran Sub Kegiatan (Isi)'];
+          if(r['Keterangan']) s.keterangan = r['Keterangan'];
+          count++;
+        });
+      });
+      saveDB();
+      alert('Import berhasil! '+count+' data.');
+      renderAll();
+    }catch(err){alert('Error: '+err.message)}
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function cetakPDF(){
+  const {jsPDF} = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFontSize(14);
+  doc.text('LAPORAN MONITORING DAN EVALUASI',105,15,{align:'center'});
+  doc.text('SUB INFRASTRUKTUR',105,22,{align:'center'});
+  doc.text('KABUPATEN BANJAR',105,29,{align:'center'});
+  doc.setFontSize(11);
+  doc.text(`Periode: ${currentFilter.bulan} ${currentFilter.tahun}`,105,40,{align:'center'});
+  
+  const t = currentFilter.tahun, b = currentFilter.bulan;
+  const rows = [];
+  DB.opd.filter(o=>o.aktif).forEach(o=>{
+    const list = getSubKegList(t,b,o.id);
+    if(list.length===0) return;
+    const k = hitungKomponen(list);
+    rows.push([o.singkatan,k.aktivitas.toFixed(2),k.fisik.toFixed(2),k.keuangan.toFixed(2),k.pendorong.toFixed(2),k.penghambat.toFixed(2),k.keluaran.toFixed(2),k.dokumen.toFixed(2),k.nilai.toFixed(2)]);
+  });
+  
+  doc.autoTable({startY:50,head:[['OPD','Aktivitas','Fisik','Keuangan','Pendorong','Penghambat','Output','Dokumen','Nilai']],body:rows,theme:'grid',headStyles:{fillColor:[59,130,246]}});
+  doc.save(`Laporan_Monev_${b}_${t}.pdf`);
+}
+
+function resetData(){
+  if(!confirm('PERINGATAN: Semua data akan dihapus.\n\nLanjutkan?')) return;
+  localStorage.removeItem('monev_db');
+  initDataAwal();saveDB();
+  initFilter();renderAll();
+  alert('Data berhasil direset.');
+}
+function backupData(){
+  const blob = new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url;a.download='backup_monev_'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();
+}
+function restoreData(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    try{
+      DB = JSON.parse(ev.target.result);
+      saveDB();initFilter();renderAll();
+      alert('Data berhasil direstore.');
+    }catch(err){alert('Error: '+err.message)}
+  };
+  reader.readAsText(file);
+}
+
+function renderAll(){
+  renderDashboard();
+  renderMonev();
+  renderRekapKab();
+  renderMasterOPD();
+  renderMasterPeriode();
+}
+
+loadDB();
+loadSidebarState();
+initFilter();
+initAnalisis();
+renderAll();
+document.getElementById('tglSekarang').textContent = new Date().toLocaleDateString('id-ID',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+</script>
+</body>
+</html>
